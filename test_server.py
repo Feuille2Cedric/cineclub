@@ -91,7 +91,7 @@ class CineTest(unittest.TestCase):
 
     def test_tmdb_mapping(self):
         from io import BytesIO
-        with patch.dict(server.os.environ,{'TMDB_TOKEN':'test'}), patch.object(server,'urlopen',return_value=BytesIO(b'{"results":[{"id":12,"title":"Film","poster_path":"/poster.jpg","release_date":"2001-04-12","overview":"Résumé"}]}')):
+        with patch.dict(server.os.environ,{'TMDB_TOKEN':'test'}), patch.object(server,'urlopen',return_value=BytesIO(b'{"results":[{"id":12,"title":"Film","poster_path":"/poster.jpg","release_date":"2001-04-12","overview":"Resume"}]}')):
             film=server.search('Film')['results'][0]
             self.assertEqual(film['year'],'2001')
             self.assertEqual(film['tmdb_id'],12)
