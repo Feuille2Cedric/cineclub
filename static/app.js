@@ -8,7 +8,7 @@ const status = id => mine(id)?.score != null ? 'Noté · '+mine(id).score+'/10' 
 const picture = film => trustedImage(film.poster) ? `<img src="${esc(film.poster)}" alt="Affiche de ${esc(film.title)}" loading="lazy">`:`<span class="placeholder">${esc(film.title)}</span>`;
 const pretty = value => new Date(value+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
 function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;setTimeout(()=>$('#toast').hidden=true,3500);}
-const storeLink = film => trustedStore(film.store_url) ? `<a class="store-link" href="${esc(film.store_url)}" target="_blank" rel="noopener">Voir sur Apple</a>` : '';
+const storeLink = film => trustedStore(film.store_url) ? `<a class="store-link" href="${esc(film.store_url)}" target="_blank" rel="noopener">Voir la fiche</a>` : '';
 function card(film){
   const scores=state.ratings.filter(r=>r.proposal_id===film.id && r.score!=null);
   const average=scores.length?(scores.reduce((n,r)=>n+r.score,0)/scores.length).toLocaleString('fr-FR',{maximumFractionDigits:1})+'/10':'Aucune note';
@@ -138,3 +138,4 @@ window.addEventListener('hashchange',()=>{if(state)render();});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
 setInterval(()=>{if(!document.hidden&&!document.querySelector('dialog[open]'))refresh();},15000);
 refresh();
+
