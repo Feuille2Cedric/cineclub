@@ -67,7 +67,7 @@ def snapshot():
         db.execute('BEGIN IMMEDIATE')
         moment = now()
         week = monday(moment)
-        return dict(members=[dict(id=i, name=n) for i,n in MEMBERS], week=week,
+        return dict(members=[dict(r) for r in db.execute('SELECT id,name FROM members ORDER BY id')], week=week,
                     draw_admin_id=1, server_time=moment.isoformat(),
                     proposals=[dict(r) for r in db.execute('SELECT * FROM proposals ORDER BY week DESC,id')],
                     draws=[dict(r) for r in db.execute('SELECT * FROM draws ORDER BY week DESC')],
@@ -83,6 +83,13 @@ def text_field(data, key, limit, required=False):
 
 
 def mutate(path, data, moment=None):
+    if path == '/api/member':
+        name = text_field(data, 'name', 40, True)
+        with connect() as db:
+            if db.execute('SELECT 1 FROM members WHERE lower(trim(name))=lower(trim(?))', (name,)).fetchone():
+                raise ValueError('Ce prénom existe déjà.')
+            cursor = db.execute('INSERT INTO members(name) VALUES (?)', (name,))
+            return {'ok': True, 'member': {'id': cursor.lastrowid, 'name': name}}
     member = data.get('member_id')
     if type(member) is not int or member not in {i for i,n in MEMBERS}:
         raise ValueError('Choisis un membre du club.')

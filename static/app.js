@@ -99,6 +99,8 @@ $('#draw').onclick=async()=>{
   }catch(e){toast(e.message);}finally{updateDraw();}
 };
 $('#profile').onclick=()=>{member=null;try{localStorage.removeItem('cineclub.member');}catch{}render();};
+$('#add-member').onclick=()=>{$('#member-form').reset();$('#member-form .form-error').textContent='';$('#member-dialog').showModal();$('#member-form [name=name]').focus();};
+$('#member-form').onsubmit=async event=>{event.preventDefault();const form=event.target,button=form.querySelector('button.primary');button.disabled=true;try{await api('/api/member',{name:form.elements.name.value.trim()});$('#member-dialog').close();await refresh();toast('Personne ajoutée au club.');}catch(e){form.querySelector('.form-error').textContent=e.message;}finally{button.disabled=false;}};
 $('#propose').onclick=()=>{selectedFilm=null;$('#proposal-form').reset();$('#selection').textContent='';$('#results').innerHTML='';$('#proposal-form .form-error').textContent='';$('#search-status').textContent='';$('#proposal-dialog').showModal();$('#search').focus();};
 $('#proposal-dialog').addEventListener('close',()=>{searchController?.abort();clearTimeout(searchTimer);searchVersion++;});
 $('#search').addEventListener('input',()=>{

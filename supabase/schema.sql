@@ -4,6 +4,7 @@ create table if not exists public.cine_members (
  id bigint primary key, name text not null check(length(name) between 1 and 40), active boolean not null default true
 );
 insert into public.cine_members(id,name) values (1,'Cédric') on conflict(id) do update set name=excluded.name;
+create unique index if not exists cine_members_name_unique on public.cine_members(lower(btrim(name)));
 create table if not exists public.cine_proposals (
  id bigint generated always as identity primary key,
  member_id bigint not null references public.cine_members(id),
@@ -80,6 +81,11 @@ language plpgsql security definer set search_path='' as $$
 declare m bigint; w date; s integer; watched boolean; chosen bigint;
 begin
  perform pg_advisory_xact_lock(73350335);
+ if action='/api/member' then
+   if jsonb_typeof(data->'name') is distinct from 'string' or length(btrim(data->>'name')) not between 1 and 40 then raise exception 'Prénom invalide.'; end if;
+   insert into public.cine_members(name) values(btrim(data->>'name'));
+   return jsonb_build_object('ok',true);
+ end if;
  if jsonb_typeof(data->'member_id') is distinct from 'number' then raise exception 'Membre invalide.'; end if;
  m := (data->>'member_id')::bigint;
  if not exists(select 1 from public.cine_members where id=m and active) then raise exception 'Choisis un membre du club.'; end if;
