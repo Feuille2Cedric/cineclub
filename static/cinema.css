@@ -11,3 +11,7 @@ footer{max-width:1280px;gap:24px;font-size:12px}footer strong{color:#eeeef0}foot
 
 .draw-controls{display:flex;gap:24px;align-items:center;background:#1c1d23;border:1px solid #625936;padding:22px;margin-bottom:26px}.draw-controls label{min-width:220px;margin:0}.draw-controls p{font-size:14px;color:var(--muted);margin-bottom:12px}@media(max-width:600px){.draw-controls{display:block}.draw-controls label{margin-bottom:18px;min-width:0}.draw-controls button{width:100%}}
 .add-member{margin-top:18px;background:transparent;border-style:dashed;color:var(--muted);font-size:13px}
+
+/* Compact proposal wall for larger clubs */
+.proposal-summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}.proposal-summary .card{display:grid;grid-template-columns:58px 1fr;gap:10px;padding:10px}.proposal-summary .card .poster{height:82px;grid-row:1 / span 2}.proposal-summary .card .card-body{padding:0}.proposal-summary .card .card-body button,.proposal-summary .card .card-bottom{display:none}.proposal-summary .card h3{font-size:1.05rem}.proposal-summary .card-top{font-size:.78rem;grid-column:2}.proposal-summary .card-top .avatar{display:none}
+
