@@ -11,9 +11,9 @@ Les tables `cine_members`, `cine_proposals`, `cine_draws`, `cine_ratings` sont i
 
 Si l’ancienne version était installée, réexécuter `schema.sql` : il conserve les données, supprime le job `cineclub-weekly-draw` s’il existe et neutralise l’ancienne fonction automatique. Il ne touche pas aux autres tâches Cron. La sélection des profils reste libre, sans authentification, comme dans club-33.
 
-## 2. Recherche Apple/iTunes
+## 2. Recherche TMDB
 
-Aucune configuration nécessaire : la recherche interroge Apple depuis le navigateur, sans clé API et sans Edge Function. L’ajout manuel reste disponible pour les films absents du catalogue français.
+Dans Supabase > Edge Functions > Secrets, ajouter `TMDB_TOKEN` avec ton API Read Access Token TMDB. Déployer ensuite `supabase/functions/movie-search` avec la CLI ou depuis le dashboard. L’ajout manuel reste disponible.
 
 Si le premier schéma TMDB avait déjà été installé, réexécuter `supabase/schema.sql` : il ajoute `apple_id` et `store_url`, accepte les affiches Apple et met à jour la fonction de proposition. Les anciennes propositions et notes sont conservées. La fonction `movie-search` et le secret `TMDB_TOKEN` ne sont plus utilisés par l’application.
 

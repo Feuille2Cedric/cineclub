@@ -1,13 +1,12 @@
 async function api(path, body, signal) {
-  if (path.startsWith('/api/search?')) return appleSearch(new URL(path, location.origin).searchParams.get('q'), signal);
   const cfg = window.CINECLUB_CONFIG || {};
   let target = path, payload = body, headers = {'Content-Type':'application/json'};
   if (cfg.supabaseUrl && cfg.supabaseKey) {
     const root = cfg.supabaseUrl.trim().replace(/\/+$/, '').replace(/\/rest\/v1$/, '');
     headers.apikey = cfg.supabaseKey;
     if (cfg.supabaseKey.startsWith('eyJ')) headers.Authorization = 'Bearer ' + cfg.supabaseKey;
-    target = root + '/rest/v1/rpc/' + (body ? 'cine_mutate' : 'cine_state');
-    payload = body ? {action:path, data:body} : {};
+    if(path.startsWith('/api/search?')) { target=root+'/functions/v1/movie-search'+path.slice(path.indexOf('?')); payload=undefined; }
+    else { target = root + '/rest/v1/rpc/' + (body ? 'cine_mutate' : 'cine_state'); payload = body ? {action:path, data:body} : {}; }
   } else if (location.hostname.endsWith('.github.io')) {
     throw new Error('La base du club reste à connecter. Consulte le guide SUPABASE.md.');
   }

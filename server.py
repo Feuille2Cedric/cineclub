@@ -169,14 +169,15 @@ def trusted_store(value):
 
 
 def search(query):
-    url = 'https://itunes.apple.com/search?' + urlencode(dict(term=query, country='fr', limit=50))
-    with urlopen(Request(url, headers={'Accept': 'application/json'}), timeout=15) as response:
+    token = os.environ.get('TMDB_TOKEN','').strip()
+    if not token: raise ValueError('TMDB_TOKEN n’est pas configuré sur le serveur local.')
+    url = 'https://api.themoviedb.org/3/search/movie?' + urlencode(dict(query=query,language='fr-FR',include_adult='false',page=1))
+    with urlopen(Request(url, headers={'Authorization':'Bearer '+token,'Accept':'application/json'}), timeout=15) as response:
         payload = json.load(response)
-    return {'results': [dict(apple_id=r['trackId'], title=r['trackName'], year=r.get('releaseDate','')[:4],
-                       overview=(r.get('longDescription') or r.get('shortDescription') or '')[:5000],
-                       poster=r.get('artworkUrl100','').replace('/100x100bb.', '/600x600bb.') if trusted_image(r.get('artworkUrl100','')) else '',
-                       store_url=r.get('trackViewUrl','') if trusted_store(r.get('trackViewUrl','')) else '')
-                       for r in payload.get('results', []) if r.get('kind') == 'feature-movie' and r.get('trackName') and type(r.get('trackId')) is int][:15]}
+    return {'results': [dict(tmdb_id=r['id'], title=r.get('title',''), year=r.get('release_date','')[:4],
+                       overview=(r.get('overview') or '')[:5000],
+                       poster='https://image.tmdb.org/t/p/w500'+r['poster_path'] if r.get('poster_path') else '')
+                       for r in payload.get('results', []) if r.get('id') and r.get('title')][:15]}
 
 
 class Handler(SimpleHTTPRequestHandler):

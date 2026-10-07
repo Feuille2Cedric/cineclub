@@ -7,7 +7,7 @@ Site : https://feuille2cedric.github.io/cineclub/
 Dépôt : https://github.com/Feuille2Cedric/cineclub
 
 - Membres définis dans le code : **Cédric uniquement** pour le moment.
-- Une proposition de film par personne et par session, recherche Apple/iTunes avec affiches et résumés disponibles, ou saisie manuelle.
+- Une proposition de film par personne et par session, recherche TMDB avec affiches et résumés, ou saisie manuelle.
 - Tirage déclenché manuellement par le **profil Cédric (id 1)**, avec le bouton « Lancer le tirage au sort ». Aucun tirage automatique ni limite du dimanche soir.
 - Chaque proposition a une chance égale, même si plusieurs membres proposent le même film.
 - Une session par semaine, du lundi au dimanche (Europe/Paris). Un tirage clôt ses propositions ; la nouvelle session ouvre le lundi. Les anciennes sessions non tirées restent accessibles à Cédric dans le sélecteur. Aucun report automatique des propositions.
@@ -26,7 +26,7 @@ python server.py
 Ouvrir http://localhost:3335, ou utiliser `Lancer.bat` après installation des dépendances.
 Les données sont dans `cineclub.sqlite3`, ignoré par Git. Aucun planificateur n’est lancé : le tirage ne se produit qu’après un clic confirmé depuis le profil Cédric.
 
-La recherche Apple/iTunes fonctionne sans clé ni compte, directement dans le navigateur, y compris sur GitHub Pages. Elle interroge le catalogue français ; un film absent peut être ajouté manuellement. Les résultats sont mis en cache pendant dix minutes. Un lien « Voir sur Apple » accompagne les films du catalogue.
+La recherche TMDB passe par une Edge Function Supabase ; le secret `TMDB_TOKEN` ne quitte jamais Supabase. Un film absent peut être ajouté manuellement.
 
 ## Membres
 
