@@ -7,18 +7,17 @@ const mine = id => state.ratings.find(r=>r.proposal_id===id && r.member_id===mem
 const status = id => mine(id)?.score != null ? 'Noté · '+mine(id).score+'/10' : mine(id)?.seen ? 'Vu · à noter':'À voir';
 const picture = film => trustedImage(film.poster) ? `<img src="${esc(film.poster)}" alt="Affiche de ${esc(film.title)}" loading="lazy">`:`<span class="placeholder">${esc(film.title)}</span>`;
 const pretty = value => new Date(value+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
-const following = week => {const d=new Date(week+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+7);return d.toISOString().slice(0,10);};
 function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;setTimeout(()=>$('#toast').hidden=true,3500);}
 const storeLink = film => trustedStore(film.store_url) ? `<a class="store-link" href="${esc(film.store_url)}" target="_blank" rel="noopener">Voir sur Apple</a>` : '';
 function card(film){
   const scores=state.ratings.filter(r=>r.proposal_id===film.id && r.score!=null);
   const average=scores.length?(scores.reduce((n,r)=>n+r.score,0)/scores.length).toLocaleString('fr-FR',{maximumFractionDigits:1})+'/10':'Aucune note';
-  return `<article class="card"><div class="card-top"><span><span class="avatar">${esc(name(film.member_id)[0])}</span>${esc(name(film.member_id))}</span><span>${esc(film.year)}</span></div><button class="poster" data-film="${film.id}" aria-label="Voir et noter ${esc(film.title)}">${picture(film)}</button><div class="card-body"><h3>${esc(film.title)}</h3>${storeLink(film)}<p>${status(film.id)}</p><button data-film="${film.id}">Voir et noter</button></div><div class="card-bottom"><span>${average} · ${scores.length} avis</span>${film.member_id===member&&film.week===state.week?`<button class="remove" data-remove="${film.id}">Retirer</button>`:''}</div></article>`;
+  return `<article class="card"><div class="card-top"><span><span class="avatar">${esc(name(film.member_id)[0])}</span>${esc(name(film.member_id))}</span><span>${esc(film.year)}</span></div><button class="poster" data-film="${film.id}" aria-label="Voir et noter ${esc(film.title)}">${picture(film)}</button><div class="card-body"><h3>${esc(film.title)}</h3>${storeLink(film)}<p>${status(film.id)}</p><button data-film="${film.id}">Voir et noter</button></div><div class="card-bottom"><span>${average} · ${scores.length} avis</span>${film.member_id===member&&film.week===state.week&&!state.draws.some(d=>d.week===film.week)?`<button class="remove" data-remove="${film.id}">Retirer</button>`:''}</div></article>`;
 }
 function feature(draw){
   const film=state.proposals.find(f=>f.id===draw.proposal_id);
   if(!film)return '';
-  return `<article class="feature"><div class="poster">${picture(film)}</div><div class="copy"><span class="eyebrow">LE FILM DU CLUB · SEMAINE DU ${esc(pretty(following(draw.week)))}</span><h2>${esc(film.title)}</h2>${storeLink(film)}<p>${esc(film.year)} · Proposé par ${esc(name(film.member_id))}<br>${status(film.id)}</p><button class="primary" data-film="${film.id}">Voir et noter le film</button></div></article>`;
+  return `<article class="feature"><div class="poster">${picture(film)}</div><div class="copy"><span class="eyebrow">LE FILM DU CLUB · SÉLECTION DU ${esc(pretty(draw.week))}</span><h2>${esc(film.title)}</h2>${storeLink(film)}<p>${esc(film.year)} · Proposé par ${esc(name(film.member_id))}<br>${status(film.id)}</p><button class="primary" data-film="${film.id}">Voir et noter le film</button></div></article>`;
 }
 function renderWall(){
   const filter=$('#filter').value, query=$('#wall-search').value.trim().toLocaleLowerCase('fr');
@@ -38,9 +37,16 @@ function render(){
   for(const view of ['week','history','posters'])$(`#${view}-view`).hidden=route!==view;
   document.querySelectorAll('nav a').forEach(a=>{a.removeAttribute('aria-current');if(a.hash==='#'+route)a.setAttribute('aria-current','page');});
   const proposals=state.proposals.filter(p=>p.week===state.week);
-  $('#propose').disabled=proposals.some(p=>p.member_id===member);
-  $('#propose').textContent=$('#propose').disabled?'Ta proposition est enregistrée':'+ Proposer un film';
-  $('#deadline').textContent='Tirage le '+new Date(state.deadline).toLocaleString('fr-FR',{timeZone:'Europe/Paris',weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})+' · heure de Paris';
+  const closed=state.draws.some(d=>d.week===state.week);
+  $('#propose').disabled=closed||proposals.some(p=>p.member_id===member);
+  $('#propose').textContent=closed?'Les propositions sont closes':$('#propose').disabled?'Ta proposition est enregistrée':'+ Proposer un film';
+  $('#deadline').textContent=closed?'Tirage effectué. Les nouvelles propositions ouvriront lundi.':'Semaine du '+pretty(state.week)+' · Tirage lancé par Cédric.';
+  $('#draw-controls').hidden=member!==state.draw_admin_id;
+  const pending=[...new Set(state.proposals.map(p=>p.week))].filter(w=>w<=state.week&&!state.draws.some(d=>d.week===w)).sort().reverse();
+  const selectedWeek=$('#draw-week').value;
+  $('#draw-week').innerHTML=pending.map(w=>`<option value="${w}">Semaine du ${esc(pretty(w))}</option>`).join('');
+  if(pending.includes(selectedWeek))$('#draw-week').value=selectedWeek;
+  updateDraw();
   $('#progress').textContent=proposals.length+' / '+state.members.length+' propositions';
   $('#winner').innerHTML=state.draws.length?feature(state.draws[0]):'<div class="empty"><h3>La première séance se prépare</h3><p>Propose ton film : le premier tirage désignera celui que le club regardera.</p></div>';
   $('#proposals').innerHTML=proposals.map(card).join('')+state.members.filter(m=>!proposals.some(p=>p.member_id===m.id)).map(m=>`<article class="empty"><h3>${esc(m.name)}</h3><p>${m.id===member?'À toi de proposer la prochaine découverte.':'Sa proposition arrive bientôt.'}</p></article>`).join('');
@@ -73,6 +79,25 @@ document.addEventListener('click',async event=>{
     catch(e){toast(e.message);}finally{b.disabled=false;}
   }
 });
+function updateDraw(){
+  const week=$('#draw-week').value;
+  const count=state.proposals.filter(p=>p.week===week).length;
+  $('#draw').disabled=!week||!count;
+  $('#draw-help').textContent=count?count+' proposition'+(count>1?'s':'')+' dans cette session. Le résultat sera définitif.':'Aucune session avec des propositions en attente de tirage.';
+}
+$('#draw-week').onchange=updateDraw;
+$('#draw').onclick=async()=>{
+  const week=$('#draw-week').value;
+  if(!week||!confirm('Lancer le tirage de la session du '+pretty(week)+' ? Les propositions seront closes et le résultat définitif.'))return;
+  $('#draw').disabled=true;
+  try{
+    const result=await api('/api/draw',{member_id:member,week});
+    await refresh();
+    const film=state.proposals.find(p=>p.id===result.proposal_id);
+    toast((result.already_drawn?'Film déjà sélectionné : ':'Le film sélectionné : ')+(film?.title||''));
+    if(film)openFilm(film.id);
+  }catch(e){toast(e.message);}finally{updateDraw();}
+};
 $('#profile').onclick=()=>{member=null;try{localStorage.removeItem('cineclub.member');}catch{}render();};
 $('#propose').onclick=()=>{selectedFilm=null;$('#proposal-form').reset();$('#selection').textContent='';$('#results').innerHTML='';$('#proposal-form .form-error').textContent='';$('#search-status').textContent='';$('#proposal-dialog').showModal();$('#search').focus();};
 $('#proposal-dialog').addEventListener('close',()=>{searchController?.abort();clearTimeout(searchTimer);searchVersion++;});

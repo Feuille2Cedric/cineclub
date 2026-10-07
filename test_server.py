@@ -26,6 +26,7 @@ class CineTest(unittest.TestCase):
     def test_one_proposal_and_closed_session(self):
         self.propose()
         with self.assertRaises(server.sqlite3.IntegrityError):self.propose()
+        server.mutate('/api/draw',dict(member_id=1,week=self.week),self.close)
         with self.assertRaises(ValueError):
             server.mutate('/api/proposal',dict(member_id=1,week=self.week,title='Trop tard'),self.close)
         with self.assertRaises(ValueError):
@@ -33,19 +34,31 @@ class CineTest(unittest.TestCase):
 
     def test_draw_once_even_concurrently(self):
         self.propose()
-        server.draw_due(self.close-timedelta(microseconds=1))
-        with server.connect() as db:self.assertEqual(db.execute('select count(*) from draws').fetchone()[0],0)
         with ThreadPoolExecutor(max_workers=6) as pool:
-            list(pool.map(lambda _:server.draw_due(self.close),range(12)))
+            results=list(pool.map(lambda _:server.mutate('/api/draw',dict(member_id=1,week=self.week),self.close),range(12)))
+        self.assertEqual(sum(not r['already_drawn'] for r in results),1)
         with server.connect() as db:
             rows=db.execute('select * from draws').fetchall()
             self.assertEqual(len(rows),1)
             self.assertEqual(rows[0]['proposal_id'],1)
 
-    def test_catchup_and_no_empty_draw(self):
+    def test_no_automatic_draw_and_delayed_manual_draw(self):
         self.propose()
-        server.draw_due(self.close+timedelta(days=15))
+        with patch.object(server,'now',return_value=self.close+timedelta(days=15)):
+            self.assertEqual(server.snapshot()['draws'],[])
+        server.mutate('/api/draw',dict(member_id=1,week=self.week),self.close+timedelta(days=15))
         with server.connect() as db:self.assertEqual(db.execute('select count(*) from draws').fetchone()[0],1)
+
+    def test_only_cedric_can_draw(self):
+        self.propose()
+        with patch.object(server,'MEMBERS',[(1,'Cédric'),(2,'Test')]):
+            server.initialize()
+            with self.assertRaisesRegex(ValueError,'Seul Cédric'):
+                server.mutate('/api/draw',dict(member_id=2,week=self.week),self.close)
+
+    def test_empty_and_future_draw_rejected(self):
+        for week in [self.week,'2026-10-12']:
+            with self.assertRaises(ValueError):server.mutate('/api/draw',dict(member_id=1,week=week),self.close)
 
     def test_paris_dst(self):
         self.assertEqual(server.deadline('2026-03-16').utcoffset(),timedelta(hours=1))
@@ -71,9 +84,10 @@ class CineTest(unittest.TestCase):
         with self.assertRaises(ValueError):server.mutate('/api/rating',dict(member_id=2,proposal_id=1,seen=True,score=8),self.close)
         with self.assertRaises(ValueError):server.mutate('/api/rating',dict(member_id=1,proposal_id=1,seen=False,score=8),self.close)
 
-    def test_boundary_opens_next_session(self):
+    def test_no_sunday_deadline(self):
         with patch.object(server,'now',return_value=self.close):
-            self.assertEqual(server.snapshot()['week'],'2026-10-12')
+            self.assertEqual(server.snapshot()['week'],self.week)
+        server.mutate('/api/proposal',dict(member_id=1,week=self.week,title='Encore possible'),self.close+timedelta(seconds=30))
 
     def test_apple_mapping(self):
         from io import BytesIO

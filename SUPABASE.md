@@ -5,10 +5,11 @@ Les tables `cine_members`, `cine_proposals`, `cine_draws`, `cine_ratings` sont i
 ## 1. Base et tirage
 
 1. Dans Supabase > SQL Editor, exécuter [supabase/schema.sql](supabase/schema.sql).
-2. Activer **Cron** dans Integrations puis exécuter [supabase/schedule.sql](supabase/schedule.sql).
-3. Vérifier la présence de `cineclub-weekly-draw` dans Cron et consulter ses exécutions.
+2. Recharger le site et choisir Cédric : le bouton « Lancer le tirage au sort » apparaît. Il devient disponible dès qu’une session contient des propositions.
 
-Le cron vérifie chaque minute les échéances arrivées ; le tirage intervient à partir du dimanche 23 h 59, heure de Paris, selon la disponibilité du service. Le fuseau est calculé en SQL, y compris lors des changements d’heure. Le résultat est persistant et protégé contre un double tirage. Un verrou partagé empêche les modifications pendant le tirage. Un rattrapage s’exécute aussi lors de l’ouverture de l’app.
+**Aucun cron à activer.** Le tirage est manuel et réservé au profil d’identifiant 1 (Cédric), vérifié côté SQL. Le résultat est persistant, sans possibilité de relancer une même session. Le verrou SQL empêche un double tirage et les modifications concurrentes des propositions.
+
+Si l’ancienne version était installée, réexécuter `schema.sql` : il conserve les données, supprime le job `cineclub-weekly-draw` s’il existe et neutralise l’ancienne fonction automatique. Il ne touche pas aux autres tâches Cron. La sélection des profils reste libre, sans authentification, comme dans club-33.
 
 ## 2. Recherche Apple/iTunes
 
@@ -24,7 +25,7 @@ Créer un dépôt GitHub pour ce dossier, puis configurer :
 - Settings > Secrets and variables > Actions > **Variables** : `SUPABASE_URL` et `SUPABASE_PUBLISHABLE_KEY`.
 - Utiliser une clé `sb_publishable_...` ou l’ancienne clé `anon`, jamais `service_role` ni `sb_secret_...`.
 
-Le workflow `.github/workflows/pages.yml` injecte ces deux valeurs publiques dans `static/config.js` et publie `static/` à chaque push sur `main`. Il ne déploie pas automatiquement le schéma SQL ni le cron Supabase.
+Le workflow `.github/workflows/pages.yml` injecte ces deux valeurs publiques dans `static/config.js` et publie `static/` à chaque push sur `main`. Il ne déploie pas automatiquement le schéma SQL.
 
 ## Ajouter les prochains membres
 
@@ -38,4 +39,4 @@ Ajouter le même identifiant dans `members.py` si l’on souhaite aussi le retro
 
 ## Vérification après installation
 
-Choisir Cédric, rechercher un film, le proposer, enregistrer une note de 0 et un avis, recharger la page et vérifier le mur des affiches. Contrôler le journal Cron. Ne pas exécuter `supabase/test.sql` sur des données réelles : il est destiné à une base de test.
+Choisir Cédric, proposer un film, lancer le tirage et vérifier que le résultat reste identique après rechargement. Les autres profils ne doivent pas avoir le bouton. Ne pas exécuter `supabase/test.sql` sur des données réelles : il est destiné à une base de test.

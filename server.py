@@ -2,8 +2,6 @@ import json
 import os
 import secrets
 import sqlite3
-import threading
-import logging
 from datetime import datetime, date, time, timedelta
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -64,33 +62,13 @@ def initialize():
         db.executemany('INSERT INTO members VALUES (?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name', MEMBERS)
 
 
-def settle(db, moment):
-    # Caller owns an IMMEDIATE transaction: submissions and draws cannot race.
-    weeks = db.execute('SELECT DISTINCT week FROM proposals WHERE week NOT IN (SELECT week FROM draws)').fetchall()
-    for row in weeks:
-        if moment >= deadline(row['week']):
-            choices = db.execute('SELECT id FROM proposals WHERE week=? ORDER BY id', (row['week'],)).fetchall()
-            chosen = secrets.choice(choices)['id']
-            db.execute('INSERT INTO draws VALUES (?,?,?)', (row['week'], chosen, moment.isoformat()))
-
-
-def draw_due(moment=None):
-    with connect() as db:
-        db.execute('BEGIN IMMEDIATE')
-        settle(db, moment or now())
-
-
 def snapshot():
     with connect() as db:
         db.execute('BEGIN IMMEDIATE')
         moment = now()
-        settle(db, moment)
         week = monday(moment)
-        # At Sunday 23:59 the next proposal window opens immediately.
-        if moment >= deadline(week):
-            week = (date.fromisoformat(week) + timedelta(days=7)).isoformat()
         return dict(members=[dict(id=i, name=n) for i,n in MEMBERS], week=week,
-                    deadline=deadline(week).isoformat(), server_time=moment.isoformat(),
+                    draw_admin_id=1, server_time=moment.isoformat(),
                     proposals=[dict(r) for r in db.execute('SELECT * FROM proposals ORDER BY week DESC,id')],
                     draws=[dict(r) for r in db.execute('SELECT * FROM draws ORDER BY week DESC')],
                     ratings=[dict(r) for r in db.execute('SELECT * FROM ratings')],
@@ -111,13 +89,28 @@ def mutate(path, data, moment=None):
     with connect() as db:
         db.execute('BEGIN IMMEDIATE')
         moment = moment or now()
-        settle(db, moment)
-        if path in ('/api/proposal', '/api/remove'):
+        if path == '/api/draw':
+            if member != 1:
+                raise ValueError('Seul Cédric peut lancer le tirage.')
+            week = text_field(data, 'week', 10, True)
+            parsed = date.fromisoformat(week)
+            if parsed.isoformat() != week or parsed.weekday() != 0 or week > monday(moment):
+                raise ValueError('Session invalide.')
+            existing = db.execute('SELECT proposal_id FROM draws WHERE week=?', (week,)).fetchone()
+            if existing:
+                return {'ok': True, 'proposal_id': existing['proposal_id'], 'already_drawn': True}
+            choices = db.execute('SELECT id FROM proposals WHERE week=? ORDER BY id', (week,)).fetchall()
+            if not choices:
+                raise ValueError('Il faut au moins une proposition pour lancer le tirage.')
+            chosen = secrets.choice(choices)['id']
+            db.execute('INSERT INTO draws VALUES (?,?,?)', (week, chosen, moment.isoformat()))
+            return {'ok': True, 'proposal_id': chosen, 'already_drawn': False}
+        elif path in ('/api/proposal', '/api/remove'):
             week = monday(moment)
-            if moment >= deadline(week):
-                week = (date.fromisoformat(week) + timedelta(days=7)).isoformat()
             if data.get('week') != week:
                 raise ValueError('Cette session est fermée. Actualise la page.')
+            if db.execute('SELECT 1 FROM draws WHERE week=?', (week,)).fetchone():
+                raise ValueError('Le tirage a déjà eu lieu. Les propositions sont closes pour cette semaine.')
             if path == '/api/remove':
                 db.execute('DELETE FROM proposals WHERE member_id=? AND week=?', (member, week))
             else:
@@ -228,18 +221,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply({'error':'Tu as déjà proposé un film pour cette session. Retire-le pour en choisir un autre.'},409)
 
 
-def scheduler():
-    while True:
-        try:
-            draw_due()
-        except Exception:
-            logging.exception('Tirage différé : nouvelle tentative dans une seconde')
-        threading.Event().wait(1)
-
-
 if __name__ == '__main__':
     initialize()
-    threading.Thread(target=scheduler, daemon=True).start()
     port = int(os.environ.get('PORT','3335'))
     print('Cinéclub : http://localhost:%s' % port, flush=True)
     ThreadingHTTPServer((os.environ.get('HOST','127.0.0.1'), port), Handler).serve_forever()

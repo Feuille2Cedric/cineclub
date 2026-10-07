@@ -77,6 +77,16 @@ with tempfile.TemporaryDirectory() as tmp:
             page.set_viewport_size({'width':390,'height':844})
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
             page.screenshot(path=str(artifacts/'mobile.png'),full_page=True)
+            page.on('dialog',lambda dialog:dialog.accept())
+            page.get_by_role('button',name='Lancer le tirage au sort',exact=True).click()
+            page.locator('#film-dialog').wait_for(state='visible')
+            page.locator('#film-dialog [data-close]').click()
+            page.locator('#winner .feature').wait_for()
+            assert page.get_by_role('button',name='Les propositions sont closes').is_disabled()
+            assert page.locator('[data-remove]').count()==0
+            page.reload()
+            page.locator('#winner .feature').wait_for()
+            assert page.get_by_role('button',name='Lancer le tirage au sort',exact=True).is_disabled()
             assert errors==[],errors
             browser.close()
             print('Browser OK: proposal, search fixture, rating 0, review persistence, seen filters, deletion, desktop/mobile; no JS errors.')

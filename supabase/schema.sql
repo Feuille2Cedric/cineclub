@@ -43,32 +43,32 @@ language sql immutable set search_path='' as $$
 $$;
 create or replace function public.cine_week() returns date
 language sql volatile set search_path='' as $$
- select date_trunc('week', (clock_timestamp() at time zone 'Europe/Paris') + interval '1 minute')::date;
+ select date_trunc('week', clock_timestamp() at time zone 'Europe/Paris')::date;
 $$;
 
 create or replace function public.cine_draw_due() returns void
 language plpgsql security definer set search_path='' as $$
-declare w date; chosen bigint;
 begin
- -- Même verrou que les soumissions : résultat unique, même à la limite horaire.
- perform pg_advisory_xact_lock(73350335);
- for w in select distinct p.week from public.cine_proposals p
-   where public.cine_deadline(p.week)<=clock_timestamp()
-   and not exists(select 1 from public.cine_draws d where d.week=p.week)
- loop
-   select id into chosen from public.cine_proposals where week=w order by random() limit 1;
-   insert into public.cine_draws(week,proposal_id,drawn_at) values(w,chosen,clock_timestamp()) on conflict do nothing;
- end loop;
+ -- Compatibilité : un ancien cron ne peut plus déclencher de tirage.
+ return;
 end;
 $$;
+
+-- Retire uniquement le cron du cinéclub, si cette extension a été activée.
+do $$ declare job bigint; begin
+ if exists(select 1 from pg_extension where extname='pg_cron') then
+   for job in execute 'select jobid from cron.job where jobname=''cineclub-weekly-draw''' loop
+     execute 'select cron.unschedule($1)' using job;
+   end loop;
+ end if;
+end $$;
 
 create or replace function public.cine_state() returns jsonb
 language plpgsql security definer set search_path='' as $$
 begin
- perform public.cine_draw_due();
  return jsonb_build_object(
    'members',(select coalesce(jsonb_agg(to_jsonb(m) order by id),'[]'::jsonb) from public.cine_members m where active),
-   'week',public.cine_week(),'deadline',public.cine_deadline(public.cine_week()),'server_time',now(),
+   'week',public.cine_week(),'draw_admin_id',1,'server_time',now(),
    'proposals',(select coalesce(jsonb_agg(to_jsonb(p) order by week desc,id),'[]'::jsonb) from public.cine_proposals p),
    'draws',(select coalesce(jsonb_agg(to_jsonb(d) order by week desc),'[]'::jsonb) from public.cine_draws d),
    'ratings',(select coalesce(jsonb_agg(to_jsonb(r)),'[]'::jsonb) from public.cine_ratings r));
@@ -77,14 +77,25 @@ $$;
 
 create or replace function public.cine_mutate(action text, data jsonb) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare m bigint; w date; s integer; watched boolean;
+declare m bigint; w date; s integer; watched boolean; chosen bigint;
 begin
  perform pg_advisory_xact_lock(73350335);
- perform public.cine_draw_due();
  if jsonb_typeof(data->'member_id') is distinct from 'number' then raise exception 'Membre invalide.'; end if;
  m := (data->>'member_id')::bigint;
  if not exists(select 1 from public.cine_members where id=m and active) then raise exception 'Choisis un membre du club.'; end if;
- if action in ('/api/proposal','/api/remove') then
+ if action='/api/draw' then
+   if m<>1 then raise exception 'Seul Cédric peut lancer le tirage.'; end if;
+   w := (data->>'week')::date;
+   if w is null or w::text<>(data->>'week') or extract(isodow from w)<>1 or w>public.cine_week() then
+     raise exception 'Session invalide.';
+   end if;
+   select proposal_id into chosen from public.cine_draws where week=w;
+   if found then return jsonb_build_object('ok',true,'proposal_id',chosen,'already_drawn',true); end if;
+   select id into chosen from public.cine_proposals where week=w order by random() limit 1;
+   if not found then raise exception 'Il faut au moins une proposition pour lancer le tirage.'; end if;
+   insert into public.cine_draws(week,proposal_id,drawn_at) values(w,chosen,clock_timestamp());
+   return jsonb_build_object('ok',true,'proposal_id',chosen,'already_drawn',false);
+ elsif action in ('/api/proposal','/api/remove') then
    w := public.cine_week();
    if (data->>'week') is distinct from w::text then raise exception 'Cette session est fermée. Actualise la page.'; end if;
    if exists(select 1 from public.cine_draws where week=w) then raise exception 'Le tirage a déjà eu lieu.'; end if;
