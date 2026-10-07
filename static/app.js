@@ -57,9 +57,19 @@ function render(){
   const currentDraw=state.draws.find(d=>d.week===state.week);
   $('#winner').innerHTML=currentDraw?feature(currentDraw):'';
   const waiting=state.members.filter(m=>!proposals.some(p=>p.member_id===m.id));
-  $('#proposals').innerHTML=proposals.map(card).join('')+(waiting.length?`<section class="waiting-list"><div class="waiting-heading"><h2>En attente</h2><span>${waiting.length}</span></div><div class="waiting-members">${waiting.map((m,i)=>`<div class="waiting-member"><span class="avatar" style="--tint:${['#e3e7d7','#f3d9c9','#d9e2ef','#eadcf0','#f0e2b8','#d7e8e2'][i%6]}">${esc(m.name[0])}</span><span>${esc(m.name)}</span><small>${m.id===member?'À toi de proposer':'Proposition à venir'}</small></div>`).join('')}</div></section>`:'');
+  $('#proposals').innerHTML=proposals.map(card).join('')+waiting.map(m=>`<article class="empty-card"><span class="waiting-avatar">${esc(m.name[0])}</span><h2>${esc(m.name)}</h2><p>${m.id===member?'À toi de proposer la prochaine découverte.':'Sa proposition arrive bientôt.'}</p></article>`).join('');
+  fitProposalColumns();
   $('#history').innerHTML=state.draws.length?state.draws.map(d=>`<section class="archive">${feature(d)}<details><summary>Les propositions du ${esc(pretty(d.week))}</summary><div class="grid">${state.proposals.filter(p=>p.week===d.week).map(card).join('')}</div></details></section>`).join(''):'<div class="empty">Les séances apparaîtront ici après le premier tirage.</div>';
   renderWall();
+}
+function fitProposalColumns(){
+  const grid=$('#proposals'),count=state?.members.length||1,width=grid.clientWidth||window.innerWidth-88,max=Math.max(1,Math.min(count,Math.floor(width/250)));
+  let best=1,bestRows=Infinity,bestSpread=Infinity;
+  for(let columns=1;columns<=max;columns++){
+    const rows=Math.ceil(count/columns),small=Math.floor(count/rows),large=Math.ceil(count/rows),spread=large-small;
+    if(rows<bestRows||(rows===bestRows&&spread<bestSpread)){best=columns;bestRows=rows;bestSpread=spread;}
+  }
+  grid.style.setProperty('--columns',best);
 }
 async function refresh(){
   if(loading)return;loading=true;
@@ -155,6 +165,7 @@ $('#rating-form').onsubmit=async event=>{
 };
 $('#filter').onchange=renderWall;$('#wall-search').oninput=renderWall;
 window.addEventListener('hashchange',()=>{if(state)render();});
+window.addEventListener('resize',()=>{if(state)fitProposalColumns();});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
 setInterval(()=>{if(!document.hidden&&!document.querySelector('dialog[open]'))refresh();},15000);
 refresh();
