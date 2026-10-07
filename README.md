@@ -2,6 +2,10 @@
 
 Application séparée de club-33, conçue pour GitHub Pages + Supabase, avec un serveur SQLite pour les essais locaux.
 
+Site : https://feuille2cedric.github.io/cineclub/
+
+Dépôt : https://github.com/Feuille2Cedric/cineclub
+
 - Membres définis dans le code : **Cédric uniquement** pour le moment.
 - Une proposition de film par personne et par session, recherche TMDB avec affiches et résumés, ou saisie manuelle.
 - Tirage dimanche à **23 h 59, Europe/Paris**. La proposition gagnante devient le film de la semaine suivante.

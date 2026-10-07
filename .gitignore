@@ -1,4 +1,6 @@
 *.sqlite3*
 __pycache__/
 .env
+.env.*
+supabase/.temp/
 test-artifacts/
