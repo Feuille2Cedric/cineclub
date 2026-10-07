@@ -34,7 +34,7 @@ function renderWall(){
 function render(){
   const chosen=state.members.find(m=>m.id===member);
   $('#welcome').hidden=!!chosen;$('#club').hidden=!chosen;$('#profile').hidden=!chosen;
-  $('#members').innerHTML=state.members.map(m=>`<button data-member="${m.id}"><span class="avatar" style="--tint:${memberTint(m.id)};background:${memberTint(m.id)}">${esc(m.name[0])}</span>${esc(m.name)}</button>`).join('');
+  $('#members').innerHTML=state.members.map(m=>`<button data-member="${m.id}"><span class="avatar" style="--tint:${memberTint(m.id)};--member-color:${memberTint(m.id)};background-color:${memberTint(m.id)}">${esc(m.name[0])}</span>${esc(m.name)}</button>`).join('');
   if(!chosen)return;
   $('#profile').textContent=chosen.name+' · changer';
   const route=['week','draw','history','posters'].includes(location.hash.slice(1))?location.hash.slice(1):'week';
