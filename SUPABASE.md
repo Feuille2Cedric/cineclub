@@ -10,15 +10,11 @@ Les tables `cine_members`, `cine_proposals`, `cine_draws`, `cine_ratings` sont i
 
 Le cron vérifie chaque minute les échéances arrivées ; le tirage intervient à partir du dimanche 23 h 59, heure de Paris, selon la disponibilité du service. Le fuseau est calculé en SQL, y compris lors des changements d’heure. Le résultat est persistant et protégé contre un double tirage. Un verrou partagé empêche les modifications pendant le tirage. Un rattrapage s’exécute aussi lors de l’ouverture de l’app.
 
-## 2. Recherche TMDB
+## 2. Recherche Apple/iTunes
 
-1. Créer une clé sur [TMDB](https://www.themoviedb.org/settings/api) et récupérer le **API Read Access Token**.
-2. Dans Supabase > Edge Functions > Secrets, ajouter `TMDB_TOKEN` avec ce jeton.
-3. Déployer la fonction `movie-search` depuis `supabase/functions/movie-search/index.ts` (dashboard ou CLI).
-4. Désactiver la vérification JWT de cette fonction : elle expose seulement une recherche publique, sans accès à la base. `supabase/config.toml` contient cette option pour la CLI.
+Aucune configuration nécessaire : la recherche interroge Apple depuis le navigateur, sans clé API et sans Edge Function. L’ajout manuel reste disponible pour les films absents du catalogue français.
 
-Avec la CLI, depuis ce dossier : `supabase functions deploy movie-search --project-ref VOTRE_PROJET`.
-Le token TMDB reste côté serveur. Le navigateur transmet la clé publique Supabase. L’ajout manuel reste utilisable si TMDB n’est pas configuré ou indisponible.
+Si le premier schéma TMDB avait déjà été installé, réexécuter `supabase/schema.sql` : il ajoute `apple_id` et `store_url`, accepte les affiches Apple et met à jour la fonction de proposition. Les anciennes propositions et notes sont conservées. La fonction `movie-search` et le secret `TMDB_TOKEN` ne sont plus utilisés par l’application.
 
 ## 3. Dépôt et Pages
 
@@ -28,7 +24,7 @@ Créer un dépôt GitHub pour ce dossier, puis configurer :
 - Settings > Secrets and variables > Actions > **Variables** : `SUPABASE_URL` et `SUPABASE_PUBLISHABLE_KEY`.
 - Utiliser une clé `sb_publishable_...` ou l’ancienne clé `anon`, jamais `service_role` ni `sb_secret_...`.
 
-Le workflow `.github/workflows/pages.yml` injecte ces deux valeurs publiques dans `static/config.js` et publie `static/` à chaque push sur `main`. Il ne déploie pas automatiquement les fonctions ni les migrations Supabase.
+Le workflow `.github/workflows/pages.yml` injecte ces deux valeurs publiques dans `static/config.js` et publie `static/` à chaque push sur `main`. Il ne déploie pas automatiquement le schéma SQL ni le cron Supabase.
 
 ## Ajouter les prochains membres
 

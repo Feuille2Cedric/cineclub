@@ -56,6 +56,11 @@ def initialize():
           score INTEGER CHECK(score BETWEEN 0 AND 10), review TEXT NOT NULL DEFAULT '',
           PRIMARY KEY(proposal_id,member_id));
         ''')
+        columns = {r['name'] for r in db.execute('PRAGMA table_info(proposals)')}
+        if 'apple_id' not in columns:
+            db.execute('ALTER TABLE proposals ADD COLUMN apple_id INTEGER')
+        if 'store_url' not in columns:
+            db.execute("ALTER TABLE proposals ADD COLUMN store_url TEXT NOT NULL DEFAULT ''")
         db.executemany('INSERT INTO members VALUES (?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name', MEMBERS)
 
 
@@ -89,7 +94,7 @@ def snapshot():
                     proposals=[dict(r) for r in db.execute('SELECT * FROM proposals ORDER BY week DESC,id')],
                     draws=[dict(r) for r in db.execute('SELECT * FROM draws ORDER BY week DESC')],
                     ratings=[dict(r) for r in db.execute('SELECT * FROM ratings')],
-                    search_available=bool(os.environ.get('TMDB_TOKEN')))
+                    search_available=True)
 
 
 def text_field(data, key, limit, required=False):
@@ -121,14 +126,20 @@ def mutate(path, data, moment=None):
                 if year and (len(year) != 4 or not year.isdigit()):
                     raise ValueError('Année invalide.')
                 poster = text_field(data, 'poster', 500)
-                if poster and not poster.startswith('https://image.tmdb.org/t/p/'):
-                    raise ValueError('Affiche TMDB invalide.')
+                if poster and not trusted_image(poster):
+                    raise ValueError('Affiche invalide.')
                 overview = text_field(data, 'overview', 5000)
                 tmdb_id = data.get('tmdb_id')
                 if tmdb_id is not None and (type(tmdb_id) is not int or tmdb_id <= 0):
                     raise ValueError('Film invalide.')
-                db.execute('INSERT INTO proposals(member_id,week,title,year,poster,overview,tmdb_id) VALUES (?,?,?,?,?,?,?)',
-                           (member,week,title,year,poster,overview,tmdb_id))
+                apple_id = data.get('apple_id')
+                if apple_id is not None and (type(apple_id) is not int or apple_id <= 0):
+                    raise ValueError('Film Apple invalide.')
+                store_url = text_field(data, 'store_url', 2000)
+                if store_url and not trusted_store(store_url):
+                    raise ValueError('Lien Apple invalide.')
+                db.execute('INSERT INTO proposals(member_id,week,title,year,poster,overview,tmdb_id,apple_id,store_url) VALUES (?,?,?,?,?,?,?,?,?)',
+                           (member,week,title,year,poster,overview,tmdb_id,apple_id,store_url))
         elif path == '/api/rating':
             proposal = data.get('proposal_id')
             if type(proposal) is not int or not db.execute('SELECT 1 FROM proposals WHERE id=?', (proposal,)).fetchone():
@@ -147,16 +158,25 @@ def mutate(path, data, moment=None):
     return {'ok': True}
 
 
+def trusted_image(value):
+    u = urlparse(value)
+    return u.scheme == 'https' and (u.hostname == 'image.tmdb.org' or (u.hostname or '').endswith('.mzstatic.com') or u.hostname == 'mzstatic.com')
+
+
+def trusted_store(value):
+    u = urlparse(value)
+    return u.scheme == 'https' and u.hostname in ('itunes.apple.com', 'tv.apple.com')
+
+
 def search(query):
-    token = os.environ.get('TMDB_TOKEN', '').strip()
-    if not token:
-        raise ValueError('La recherche TMDB attend sa clé. Tu peux ajouter un film manuellement.')
-    url = 'https://api.themoviedb.org/3/search/movie?' + urlencode(dict(query=query, language='fr-FR', include_adult='false'))
-    with urlopen(Request(url, headers={'Authorization': 'Bearer ' + token, 'Accept': 'application/json'}), timeout=12) as response:
+    url = 'https://itunes.apple.com/search?' + urlencode(dict(term=query, country='fr', limit=50))
+    with urlopen(Request(url, headers={'Accept': 'application/json'}), timeout=15) as response:
         payload = json.load(response)
-    return {'results': [dict(tmdb_id=r['id'], title=r['title'], year=r.get('release_date','')[:4],
-                       overview=r.get('overview',''), poster='https://image.tmdb.org/t/p/w500' + r['poster_path'] if r.get('poster_path') else '')
-                       for r in payload.get('results', [])[:15]]}
+    return {'results': [dict(apple_id=r['trackId'], title=r['trackName'], year=r.get('releaseDate','')[:4],
+                       overview=(r.get('longDescription') or r.get('shortDescription') or '')[:5000],
+                       poster=r.get('artworkUrl100','').replace('/100x100bb.', '/600x600bb.') if trusted_image(r.get('artworkUrl100','')) else '',
+                       store_url=r.get('trackViewUrl','') if trusted_store(r.get('trackViewUrl','')) else '')
+                       for r in payload.get('results', []) if r.get('kind') == 'feature-movie' and r.get('trackName') and type(r.get('trackId')) is int][:15]}
 
 
 class Handler(SimpleHTTPRequestHandler):

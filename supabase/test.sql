@@ -5,7 +5,10 @@ do $$ begin
  if has_function_privilege('anon','public.cine_draw_due()','EXECUTE') then raise exception 'Private draw exposed'; end if;
 end $$;
 set local role anon;
-select public.cine_mutate('/api/proposal',jsonb_build_object('member_id',1,'week',public.cine_state()->>'week','title','Test film'));
+select public.cine_mutate('/api/proposal',jsonb_build_object('member_id',1,'week',public.cine_state()->>'week','title','Test film','apple_id',123,'poster','https://is1-ssl.mzstatic.com/image/test.jpg','store_url','https://itunes.apple.com/fr/movie/id123'));
+do $$ begin
+ if (public.cine_state()->'proposals'->0->>'apple_id')::bigint<>123 then raise exception 'Apple ID lost'; end if;
+end $$;
 do $$ begin
  begin
    perform public.cine_mutate('/api/proposal',jsonb_build_object('member_id',1,'week',public.cine_state()->>'week','title','Duplicate'));

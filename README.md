@@ -7,7 +7,7 @@ Site : https://feuille2cedric.github.io/cineclub/
 Dépôt : https://github.com/Feuille2Cedric/cineclub
 
 - Membres définis dans le code : **Cédric uniquement** pour le moment.
-- Une proposition de film par personne et par session, recherche TMDB avec affiches et résumés, ou saisie manuelle.
+- Une proposition de film par personne et par session, recherche Apple/iTunes avec affiches et résumés disponibles, ou saisie manuelle.
 - Tirage dimanche à **23 h 59, Europe/Paris**. La proposition gagnante devient le film de la semaine suivante.
 - Chaque proposition a une chance égale, même si plusieurs membres proposent le même film.
 - La session suivante ouvre dès le tirage. Les propositions perdantes restent dans l’historique, sans report automatique.
@@ -26,7 +26,7 @@ python server.py
 Ouvrir http://localhost:3335, ou utiliser `Lancer.bat` après installation des dépendances.
 Les données sont dans `cineclub.sqlite3`, ignoré par Git. Le serveur local doit rester lancé pour tirer à l’heure ; après interruption, il rattrape les tirages manqués au redémarrage. En ligne, le cron Supabase fonctionne sans navigateur ouvert.
 
-Pour activer la recherche locale, définir `TMDB_TOKEN` dans l’environnement avant de lancer le serveur. Utiliser le **API Read Access Token**, pas la clé API v3. Ne pas le mettre dans le JavaScript ni dans Git.
+La recherche Apple/iTunes fonctionne sans clé ni compte, directement dans le navigateur, y compris sur GitHub Pages. Elle interroge le catalogue français ; un film absent peut être ajouté manuellement. Les résultats sont mis en cache pendant dix minutes. Un lien « Voir sur Apple » accompagne les films du catalogue.
 
 ## Membres
 
@@ -44,6 +44,6 @@ Comme club-33, la sélection du profil est libre, sans mot de passe : le profil 
 python -m unittest -v
 ```
 
-Les tests couvrent les échéances, l’heure d’été/hiver, la concurrence des tirages, les notes et l’adaptateur TMDB. `supabase/test.sql` contrôle les droits et les opérations SQL sur une base de test.
+Les tests couvrent les échéances, l’heure d’été/hiver, la concurrence des tirages, les notes et l’adaptateur Apple. `supabase/test.sql` contrôle les droits et les opérations SQL sur une base de test.
 
-Documentation API : [TMDB](https://developer.themoviedb.org/docs/search-and-query-for-details), [Supabase Cron](https://supabase.com/docs/guides/cron).
+Documentation API : [Apple/iTunes](https://performance-partners.apple.com/search-api), [Supabase Cron](https://supabase.com/docs/guides/cron).

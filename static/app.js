@@ -5,19 +5,20 @@ try {member=Number(localStorage.getItem('cineclub.member'));} catch {}
 const name = id => state.members.find(m=>m.id===id)?.name || 'Ancien membre';
 const mine = id => state.ratings.find(r=>r.proposal_id===id && r.member_id===member);
 const status = id => mine(id)?.score != null ? 'Noté · '+mine(id).score+'/10' : mine(id)?.seen ? 'Vu · à noter':'À voir';
-const picture = film => film.poster && /^https:\/\/image\.tmdb\.org\/t\/p\//.test(film.poster) ? `<img src="${esc(film.poster)}" alt="Affiche de ${esc(film.title)}" loading="lazy">`:`<span class="placeholder">${esc(film.title)}</span>`;
+const picture = film => trustedImage(film.poster) ? `<img src="${esc(film.poster)}" alt="Affiche de ${esc(film.title)}" loading="lazy">`:`<span class="placeholder">${esc(film.title)}</span>`;
 const pretty = value => new Date(value+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
 const following = week => {const d=new Date(week+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+7);return d.toISOString().slice(0,10);};
 function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;setTimeout(()=>$('#toast').hidden=true,3500);}
+const storeLink = film => trustedStore(film.store_url) ? `<a class="store-link" href="${esc(film.store_url)}" target="_blank" rel="noopener">Voir sur Apple</a>` : '';
 function card(film){
   const scores=state.ratings.filter(r=>r.proposal_id===film.id && r.score!=null);
   const average=scores.length?(scores.reduce((n,r)=>n+r.score,0)/scores.length).toLocaleString('fr-FR',{maximumFractionDigits:1})+'/10':'Aucune note';
-  return `<article class="card"><div class="card-top"><span><span class="avatar">${esc(name(film.member_id)[0])}</span>${esc(name(film.member_id))}</span><span>${esc(film.year)}</span></div><button class="poster" data-film="${film.id}" aria-label="Voir et noter ${esc(film.title)}">${picture(film)}</button><div class="card-body"><h3>${esc(film.title)}</h3><p>${status(film.id)}</p><button data-film="${film.id}">Voir et noter</button></div><div class="card-bottom"><span>${average} · ${scores.length} avis</span>${film.member_id===member&&film.week===state.week?`<button class="remove" data-remove="${film.id}">Retirer</button>`:''}</div></article>`;
+  return `<article class="card"><div class="card-top"><span><span class="avatar">${esc(name(film.member_id)[0])}</span>${esc(name(film.member_id))}</span><span>${esc(film.year)}</span></div><button class="poster" data-film="${film.id}" aria-label="Voir et noter ${esc(film.title)}">${picture(film)}</button><div class="card-body"><h3>${esc(film.title)}</h3>${storeLink(film)}<p>${status(film.id)}</p><button data-film="${film.id}">Voir et noter</button></div><div class="card-bottom"><span>${average} · ${scores.length} avis</span>${film.member_id===member&&film.week===state.week?`<button class="remove" data-remove="${film.id}">Retirer</button>`:''}</div></article>`;
 }
 function feature(draw){
   const film=state.proposals.find(f=>f.id===draw.proposal_id);
   if(!film)return '';
-  return `<article class="feature"><div class="poster">${picture(film)}</div><div class="copy"><span class="eyebrow">LE FILM DU CLUB · SEMAINE DU ${esc(pretty(following(draw.week)))}</span><h2>${esc(film.title)}</h2><p>${esc(film.year)} · Proposé par ${esc(name(film.member_id))}<br>${status(film.id)}</p><button class="primary" data-film="${film.id}">Voir et noter le film</button></div></article>`;
+  return `<article class="feature"><div class="poster">${picture(film)}</div><div class="copy"><span class="eyebrow">LE FILM DU CLUB · SEMAINE DU ${esc(pretty(following(draw.week)))}</span><h2>${esc(film.title)}</h2>${storeLink(film)}<p>${esc(film.year)} · Proposé par ${esc(name(film.member_id))}<br>${status(film.id)}</p><button class="primary" data-film="${film.id}">Voir et noter le film</button></div></article>`;
 }
 function renderWall(){
   const filter=$('#filter').value, query=$('#wall-search').value.trim().toLocaleLowerCase('fr');
@@ -55,7 +56,7 @@ async function refresh(){
 function openFilm(id){
   activeFilm=state.proposals.find(f=>f.id===id);if(!activeFilm)return;
   const r=mine(id),form=$('#rating-form');
-  $('#film-details').innerHTML=`<h2>${esc(activeFilm.title)}</h2><p>${esc(activeFilm.year)} · Proposé par ${esc(name(activeFilm.member_id))}</p>${activeFilm.overview?`<p>${esc(activeFilm.overview)}</p>`:''}${activeFilm.tmdb_id?`<p><a target="_blank" rel="noopener" href="https://www.themoviedb.org/movie/${Number(activeFilm.tmdb_id)}">Fiche TMDB</a></p>`:''}`;
+  $('#film-details').innerHTML=`<h2>${esc(activeFilm.title)}</h2><p>${esc(activeFilm.year)} · Proposé par ${esc(name(activeFilm.member_id))}</p>${activeFilm.overview?`<p>${esc(activeFilm.overview)}</p>`:''}${trustedStore(activeFilm.store_url)?`<p>${storeLink(activeFilm)}</p>`:''}`;
   form.elements.seen.checked=!!r?.seen;form.elements.score.value=r?.score??'';form.elements.review.value=r?.review||'';form.querySelector('.form-error').textContent='';
   $('#reviews').innerHTML='<h3>Les avis du club</h3>'+state.ratings.filter(v=>v.proposal_id===id&&(v.score!=null||v.review)).map(v=>`<div class="review"><strong>${esc(name(v.member_id))}</strong> · ${v.score!=null?v.score+'/10':'Sans note'}<p>${esc(v.review)}</p></div>`).join('');
   if(!$('#film-dialog').open)$('#film-dialog').showModal();
@@ -82,11 +83,11 @@ $('#search').addEventListener('input',()=>{
     searchController=new AbortController();$('#search-status').textContent='Recherche en cours…';
     try{
       const data=await api('/api/search?q='+encodeURIComponent(q),undefined,searchController.signal);if(version!==searchVersion)return;
-      $('#search-status').textContent=data.results.length?'Choisis ton film.':'Aucun résultat. Essaie un autre titre.';
+      $('#search-status').textContent=data.results.length?'Choisis ton film.':'Aucun film trouvé dans le catalogue Apple France. Essaie un autre titre ou utilise l’ajout manuel.';
       $('#results').innerHTML=data.results.map((f,i)=>`<button type="button" class="result" data-result="${i}">${f.poster?`<img src="${esc(f.poster)}" alt="">`:''}<span>${esc(f.title)}<small>${esc(f.year)}</small></span></button>`).join('');
       $('#results').querySelectorAll('button').forEach(b=>b.onclick=()=>{selectedFilm=data.results[Number(b.dataset.result)];$('#selection').textContent=selectedFilm.title+' ('+selectedFilm.year+') sélectionné';$('#results').innerHTML='';$('#manual').open=false;$('#proposal-form').elements.title.value='';});
     }catch(e){if(e.name!=='AbortError'&&version===searchVersion)$('#search-status').textContent=e.message;}
-  },300);
+  },500);
 });
 $('#manual').addEventListener('input',()=>{selectedFilm=null;$('#selection').textContent='';});
 $('#proposal-form').onsubmit=async event=>{

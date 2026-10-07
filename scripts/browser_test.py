@@ -59,8 +59,12 @@ with tempfile.TemporaryDirectory() as tmp:
             page.get_by_role('link',name='Cette semaine',exact=True).click()
             page.get_by_role('button',name='Retirer',exact=True).click()
             page.get_by_role('button',name='+ Proposer un film').wait_for(state='visible')
-            # Contract fixture: a TMDB response, without requiring a real key.
-            page.route('**/api/search?*',lambda route:route.fulfill(content_type='application/json',body=json.dumps({'results':[{'tmdb_id':123,'title':'Film du catalogue','year':'2001','poster':'','overview':'Résumé du film.'}]})))
+            # Contract fixture: an Apple response, without requiring a real key.
+            def apple_fixture(route):
+                from urllib.parse import urlparse, parse_qs
+                callback=parse_qs(urlparse(route.request.url).query)['callback'][0]
+                route.fulfill(content_type='text/javascript',body=callback+'('+json.dumps({'results':[{'kind':'feature-movie','trackId':123,'trackName':'Film du catalogue','releaseDate':'2001-01-01','trackViewUrl':'https://itunes.apple.com/fr/movie/id123'}]})+');')
+            page.route('https://itunes.apple.com/search?*',apple_fixture)
             page.get_by_role('button',name='+ Proposer un film').click()
             page.locator('#search').fill('Film')
             page.locator('.result').click()

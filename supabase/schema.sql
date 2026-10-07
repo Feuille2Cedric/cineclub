@@ -17,6 +17,13 @@ create table if not exists public.cine_proposals (
 create table if not exists public.cine_draws (
  week date primary key, proposal_id bigint not null references public.cine_proposals(id), drawn_at timestamptz not null default now()
 );
+-- Migration additive : les propositions et notes existantes sont conservées.
+alter table public.cine_proposals add column if not exists apple_id bigint check(apple_id>0);
+alter table public.cine_proposals add column if not exists store_url text not null default ''
+ check(length(store_url)<=2000 and (store_url='' or store_url ~ '^https://(itunes[.]apple[.]com|tv[.]apple[.]com)/'));
+alter table public.cine_proposals drop constraint if exists cine_proposals_poster_check;
+alter table public.cine_proposals add constraint cine_proposals_poster_check
+ check(length(poster)<=500 and (poster='' or poster ~ '^https://(image[.]tmdb[.]org|([a-zA-Z0-9-]+[.])*mzstatic[.]com)/'));
 create table if not exists public.cine_ratings (
  proposal_id bigint not null references public.cine_proposals(id) on delete cascade,
  member_id bigint not null references public.cine_members(id),
@@ -84,8 +91,8 @@ begin
    if action='/api/remove' then
      delete from public.cine_proposals where member_id=m and week=w;
    else
-     insert into public.cine_proposals(member_id,week,title,year,poster,overview,tmdb_id)
-     values(m,w,btrim(data->>'title'),coalesce(data->>'year',''),coalesce(data->>'poster',''),coalesce(data->>'overview',''),(data->>'tmdb_id')::bigint);
+     insert into public.cine_proposals(member_id,week,title,year,poster,overview,tmdb_id,apple_id,store_url)
+     values(m,w,btrim(data->>'title'),coalesce(data->>'year',''),coalesce(data->>'poster',''),coalesce(data->>'overview',''),(data->>'tmdb_id')::bigint,(data->>'apple_id')::bigint,coalesce(data->>'store_url',''));
    end if;
  elsif action='/api/rating' then
    if jsonb_typeof(data->'seen') is distinct from 'boolean' then raise exception 'État de visionnage invalide.'; end if;

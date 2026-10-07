@@ -75,12 +75,22 @@ class CineTest(unittest.TestCase):
         with patch.object(server,'now',return_value=self.close):
             self.assertEqual(server.snapshot()['week'],'2026-10-12')
 
-    def test_tmdb_mapping(self):
+    def test_apple_mapping(self):
         from io import BytesIO
-        with patch.dict(server.os.environ,{'TMDB_TOKEN':'test'}),patch.object(server,'urlopen',return_value=BytesIO(b'{"results":[{"id":12,"title":"Film","poster_path":"/poster.jpg","release_date":"2001-04-12"}]}')):
+        with patch.object(server,'urlopen',return_value=BytesIO(b'{"results":[{"kind":"feature-movie","trackId":12,"trackName":"Film","artworkUrl100":"https://is1-ssl.mzstatic.com/image/test.jpg","releaseDate":"2001-04-12","trackViewUrl":"https://itunes.apple.com/fr/movie/id12"},{"kind":"song","trackId":13,"trackName":"Music"}]}')):
             film=server.search('Film')['results'][0]
             self.assertEqual(film['year'],'2001')
-            self.assertEqual(film['tmdb_id'],12)
-            self.assertTrue(film['poster'].startswith('https://image.tmdb.org/'))
+            self.assertEqual(film['apple_id'],12)
+            server.mutate('/api/proposal',dict(film,member_id=1,week=self.week),self.close-timedelta(seconds=1))
+            with server.connect() as db:
+                row=db.execute('select * from proposals').fetchone()
+                self.assertEqual(row['apple_id'],12)
+                self.assertEqual(row['store_url'],film['store_url'])
+
+    def test_external_urls_are_validated(self):
+        self.assertFalse(server.trusted_image('https://mzstatic.com.evil.test/a'))
+        self.assertFalse(server.trusted_store('javascript:alert(1)'))
+        self.assertFalse(server.trusted_store('https://itunes.apple.com.evil.test/a'))
+        self.assertTrue(server.trusted_image('https://is1-ssl.mzstatic.com/image/a.jpg'))
 
 if __name__=='__main__':unittest.main()
