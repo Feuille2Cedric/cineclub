@@ -56,7 +56,8 @@ function render(){
   $('#member-avatars').innerHTML=state.members.map((m,i)=>`<span class="avatar" style="--tint:${['#e3e7d7','#f3d9c9','#d9e2ef','#eadcf0','#f0e2b8','#d7e8e2'][i%6]}" title="${esc(m.name)}">${esc(m.name[0])}</span>`).join('');
   const currentDraw=state.draws.find(d=>d.week===state.week);
   $('#winner').innerHTML=currentDraw?feature(currentDraw):'';
-  $('#proposals').innerHTML=proposals.map(card).join('')+state.members.filter(m=>!proposals.some(p=>p.member_id===m.id)).map(m=>`<article class="empty-card"><h2>${esc(m.name)}</h2><p>${m.id===member?'À toi de proposer la prochaine découverte.':'Sa proposition arrive bientôt.'}</p></article>`).join('');
+  const waiting=state.members.filter(m=>!proposals.some(p=>p.member_id===m.id));
+  $('#proposals').innerHTML=proposals.map(card).join('')+(waiting.length?`<section class="waiting-list"><div class="waiting-heading"><h2>En attente</h2><span>${waiting.length}</span></div><div class="waiting-members">${waiting.map((m,i)=>`<div class="waiting-member"><span class="avatar" style="--tint:${['#e3e7d7','#f3d9c9','#d9e2ef','#eadcf0','#f0e2b8','#d7e8e2'][i%6]}">${esc(m.name[0])}</span><span>${esc(m.name)}</span><small>${m.id===member?'À toi de proposer':'Proposition à venir'}</small></div>`).join('')}</div></section>`:'');
   $('#history').innerHTML=state.draws.length?state.draws.map(d=>`<section class="archive">${feature(d)}<details><summary>Les propositions du ${esc(pretty(d.week))}</summary><div class="grid">${state.proposals.filter(p=>p.week===d.week).map(card).join('')}</div></details></section>`).join(''):'<div class="empty">Les séances apparaîtront ici après le premier tirage.</div>';
   renderWall();
 }
