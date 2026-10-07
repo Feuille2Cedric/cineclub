@@ -3,6 +3,7 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 let state, member, selectedFilm, activeFilm, searchTimer, searchController, searchVersion=0, loading=false;
 try {member=Number(localStorage.getItem('cineclub.member'));} catch {}
 const name = id => state.members.find(m=>m.id===id)?.name || 'Ancien membre';
+const memberTint = id => ['#e3e7d7','#f3d9c9','#d9e2ef','#eadcf0','#f0e2b8','#d7e8e2','#f0d7df','#d9e8ef'][Math.abs(Number(id)||0)%8];
 const mine = id => state.ratings.find(r=>r.proposal_id===id && r.member_id===member);
 const status = id => mine(id)?.score != null ? 'Noté · '+mine(id).score+'/10' : mine(id)?.seen ? 'Vu · à noter':'À voir';
 const picture = film => trustedImage(film.poster) ? `<img src="${esc(film.poster)}" alt="Affiche de ${esc(film.title)}" loading="lazy">`:`<span class="placeholder">${esc(film.title)}</span>`;
@@ -14,7 +15,7 @@ function card(film){
   const average=scores.length?(scores.reduce((n,r)=>n+r.score,0)/scores.length).toLocaleString('fr-FR',{maximumFractionDigits:1})+'/10':'Aucune note';
   const myRating=mine(film.id), isOpen=!state.draws.some(d=>d.week===film.week);
   const scoreButtons=Array.from({length:11},(_,n)=>`<button type="button" data-quick-score="${n}" data-film="${film.id}" class="${myRating?.score===n?'selected':''}" aria-pressed="${myRating?.score===n}">${n}</button>`).join('');
-  return `<article class="card"><div class="card-top"><span class="proposer"><span class="avatar">${esc(name(film.member_id)[0])}</span>${esc(name(film.member_id))}</span><span class="card-number">${esc(film.year)}</span></div><button class="cover" data-film="${film.id}" aria-label="Voir et noter ${esc(film.title)}">${picture(film)}</button><div class="card-body"><div class="album-info"><h2>${esc(film.title)}</h2><p class="artist">${film.director?'Un film de '+esc(film.director):'Réalisateur non renseigné'}</p></div><div class="rating"><div class="rating-heading"><span>${myRating?.seen?'Vu':'À voir'}</span><span class="personal-score">${myRating?.score!=null?'Ma note : '+myRating.score+'/10':'À noter'}</span></div><div class="scores" role="group" aria-label="Ma note pour ${esc(film.title)}">${scoreButtons}</div><label class="seen-toggle"><input type="checkbox" data-seen="${film.id}" ${myRating?.seen?'checked':''}> J’ai vu ce film</label></div><div class="reviews">${state.ratings.filter(r=>r.proposal_id===film.id&&r.review).map(r=>`<p class="review-chip"><strong>${esc(name(r.member_id))}${r.score!=null?' · '+r.score+'/10':''}</strong>${esc(r.review)}</p>`).join('')}</div></div><div class="rating-footer"><span class="average-label"><b>${average}</b> · ${scores.length} avis</span>${film.member_id===member&&isOpen?`<button class="delete-album" data-remove="${film.id}" aria-label="Retirer ma proposition">Retirer</button>`:''}</div></article>`;
+  return `<article class="card"><div class="card-top"><span class="proposer"><span class="avatar" style="--tint:${memberTint(film.member_id)};background:${memberTint(film.member_id)}">${esc(name(film.member_id)[0])}</span>${esc(name(film.member_id))}</span><span class="card-number">${esc(film.year)}</span></div><button class="cover" data-film="${film.id}" aria-label="Voir et noter ${esc(film.title)}">${picture(film)}</button><div class="card-body"><div class="album-info"><h2>${esc(film.title)}</h2><p class="artist">${film.director?'Un film de '+esc(film.director):'Réalisateur non renseigné'}</p></div><div class="rating"><div class="rating-heading"><span>${myRating?.seen?'Vu':'À voir'}</span><span class="personal-score">${myRating?.score!=null?'Ma note : '+myRating.score+'/10':'À noter'}</span></div><div class="scores" role="group" aria-label="Ma note pour ${esc(film.title)}">${scoreButtons}</div><label class="seen-toggle"><input type="checkbox" data-seen="${film.id}" ${myRating?.seen?'checked':''}> J’ai vu ce film</label></div><div class="reviews">${state.ratings.filter(r=>r.proposal_id===film.id&&r.review).map(r=>`<p class="review-chip"><strong>${esc(name(r.member_id))}${r.score!=null?' · '+r.score+'/10':''}</strong>${esc(r.review)}</p>`).join('')}</div></div><div class="rating-footer"><span class="average-label"><b>${average}</b> · ${scores.length} avis</span>${film.member_id===member&&isOpen?`<button class="delete-album" data-remove="${film.id}" aria-label="Retirer ma proposition">Retirer</button>`:''}</div></article>`;
 }
 function feature(draw){
   const film=state.proposals.find(f=>f.id===draw.proposal_id);
@@ -33,7 +34,7 @@ function renderWall(){
 function render(){
   const chosen=state.members.find(m=>m.id===member);
   $('#welcome').hidden=!!chosen;$('#club').hidden=!chosen;$('#profile').hidden=!chosen;
-  $('#members').innerHTML=state.members.map(m=>`<button data-member="${m.id}"><span class="avatar">${esc(m.name[0])}</span>${esc(m.name)}</button>`).join('');
+  $('#members').innerHTML=state.members.map(m=>`<button data-member="${m.id}"><span class="avatar" style="--tint:${memberTint(m.id)};background:${memberTint(m.id)}">${esc(m.name[0])}</span>${esc(m.name)}</button>`).join('');
   if(!chosen)return;
   $('#profile').textContent=chosen.name+' · changer';
   const route=['week','draw','history','posters'].includes(location.hash.slice(1))?location.hash.slice(1):'week';
@@ -53,11 +54,11 @@ function render(){
   if(pending.includes(selectedWeek))$('#draw-week').value=selectedWeek;
   updateDraw();
   $('#progress').textContent=proposals.length+' / '+state.members.length+' propositions';
-  $('#member-avatars').innerHTML=state.members.map((m,i)=>`<span class="avatar" style="--tint:${['#e3e7d7','#f3d9c9','#d9e2ef','#eadcf0','#f0e2b8','#d7e8e2'][i%6]}" title="${esc(m.name)}">${esc(m.name[0])}</span>`).join('');
+  $('#member-avatars').innerHTML=state.members.map(m=>`<span class="avatar" style="--tint:${memberTint(m.id)}" title="${esc(m.name)}">${esc(m.name[0])}</span>`).join('');
   const currentDraw=state.draws.find(d=>d.week===state.week);
   $('#winner').innerHTML=currentDraw?feature(currentDraw):'';
   const waiting=state.members.filter(m=>!proposals.some(p=>p.member_id===m.id));
-  $('#proposals').innerHTML=proposals.map(card).join('')+waiting.map(m=>`<article class="empty-card"><span class="waiting-avatar">${esc(m.name[0])}</span><h2>${esc(m.name)}</h2><p>${m.id===member?'À toi de proposer la prochaine découverte.':'Sa proposition arrive bientôt.'}</p></article>`).join('');
+  $('#proposals').innerHTML=proposals.map(card).join('')+waiting.map(m=>`<article class="empty-card"><span class="waiting-avatar" style="background:${memberTint(m.id)}">${esc(m.name[0])}</span><h2>${esc(m.name)}</h2><p>${m.id===member?'À toi de proposer la prochaine découverte.':'Sa proposition arrive bientôt.'}</p></article>`).join('');
   fitProposalColumns();
   $('#history').innerHTML=state.draws.length?state.draws.map(d=>`<section class="archive">${feature(d)}<details><summary>Les propositions du ${esc(pretty(d.week))}</summary><div class="grid">${state.proposals.filter(p=>p.week===d.week).map(card).join('')}</div></details></section>`).join(''):'<div class="empty">Les séances apparaîtront ici après le premier tirage.</div>';
   renderWall();
