@@ -83,7 +83,8 @@ begin
  perform pg_advisory_xact_lock(73350335);
  if action='/api/member' then
    if jsonb_typeof(data->'name') is distinct from 'string' or length(btrim(data->>'name')) not between 1 and 40 then raise exception 'Prénom invalide.'; end if;
-   insert into public.cine_members(name) values(btrim(data->>'name'));
+   insert into public.cine_members(id,name)
+   select coalesce(max(id),0)+1,btrim(data->>'name') from public.cine_members;
    return jsonb_build_object('ok',true);
  end if;
  if jsonb_typeof(data->'member_id') is distinct from 'number' then raise exception 'Membre invalide.'; end if;
