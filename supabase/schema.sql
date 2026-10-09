@@ -1,9 +1,9 @@
-﻿-- Tables indÃ©pendantes de club-33. ExÃ©cuter dans Supabase > SQL Editor.
+-- Tables indépendantes de club-33. Exécuter dans Supabase > SQL Editor.
 begin;
 create table if not exists public.cine_members (
  id bigint primary key, name text not null check(length(name) between 1 and 40), active boolean not null default true
 );
-insert into public.cine_members(id,name) values (1,'CÃ©dric') on conflict(id) do update set name=excluded.name;
+insert into public.cine_members(id,name) values (1,'Cédric') on conflict(id) do update set name=excluded.name;
 create unique index if not exists cine_members_name_unique on public.cine_members(lower(btrim(name)));
 create table if not exists public.cine_proposals (
  id bigint generated always as identity primary key,
@@ -19,7 +19,7 @@ create table if not exists public.cine_proposals (
 create table if not exists public.cine_draws (
  week date primary key, proposal_id bigint not null references public.cine_proposals(id), drawn_at timestamptz not null default now()
 );
--- Migration additive : les propositions et notes existantes sont conservÃ©es.
+-- Migration additive : les propositions et notes existantes sont conservées.
 alter table public.cine_proposals add column if not exists apple_id bigint check(apple_id>0);
 alter table public.cine_proposals add column if not exists store_url text not null default ''
  check(length(store_url)<=2000 and (store_url='' or store_url ~ '^https://(itunes[.]apple[.]com|tv[.]apple[.]com)/'));
@@ -51,12 +51,12 @@ $$;
 create or replace function public.cine_draw_due() returns void
 language plpgsql security definer set search_path='' as $$
 begin
- -- CompatibilitÃ© : un ancien cron ne peut plus dÃ©clencher de tirage.
+ -- Compatibilité : un ancien cron ne peut plus déclencher de tirage.
  return;
 end;
 $$;
 
--- Retire uniquement le cron du cinÃ©club, si cette extension a Ã©tÃ© activÃ©e.
+-- Retire uniquement le cron du cinéclub, si cette extension a été activée.
 do $$ declare job bigint; begin
  if exists(select 1 from pg_extension where extname='pg_cron') then
    for job in execute 'select jobid from cron.job where jobname=''cineclub-weekly-draw''' loop
@@ -83,7 +83,7 @@ declare m bigint; w date; s integer; watched boolean; chosen bigint;
 begin
  perform pg_advisory_xact_lock(73350335);
  if action='/api/member' then
-   if jsonb_typeof(data->'name') is distinct from 'string' or length(btrim(data->>'name')) not between 1 and 40 then raise exception 'PrÃ©nom invalide.'; end if;
+   if jsonb_typeof(data->'name') is distinct from 'string' or length(btrim(data->>'name')) not between 1 and 40 then raise exception 'Prénom invalide.'; end if;
    insert into public.cine_members(id,name)
    select coalesce(max(id),0)+1,btrim(data->>'name') from public.cine_members;
    return jsonb_build_object('ok',true);
@@ -92,7 +92,7 @@ begin
  m := (data->>'member_id')::bigint;
  if not exists(select 1 from public.cine_members where id=m and active) then raise exception 'Choisis un membre du club.'; end if;
  if action='/api/draw' then
-   if m<>1 then raise exception 'Seul CÃ©dric peut lancer le tirage.'; end if;
+   if m<>1 then raise exception 'Seul Cédric peut lancer le tirage.'; end if;
    w := (data->>'week')::date;
    if w is null or w::text<>(data->>'week') or extract(isodow from w)<>1 or w>public.cine_week() then
      raise exception 'Session invalide.';
@@ -105,8 +105,8 @@ begin
    return jsonb_build_object('ok',true,'proposal_id',chosen,'already_drawn',false);
  elsif action in ('/api/proposal','/api/remove') then
    w := public.cine_week();
-   if (data->>'week') is distinct from w::text then raise exception 'Cette session est fermÃ©e. Actualise la page.'; end if;
-   if exists(select 1 from public.cine_draws where week=w) then raise exception 'Le tirage a dÃ©jÃ  eu lieu.'; end if;
+   if (data->>'week') is distinct from w::text then raise exception 'Cette session est fermée. Actualise la page.'; end if;
+   if exists(select 1 from public.cine_draws where week=w) then raise exception 'Le tirage a déjà eu lieu.'; end if;
    if action='/api/remove' then
      delete from public.cine_proposals where member_id=m and week=w;
    else
@@ -114,7 +114,7 @@ begin
      values(m,w,btrim(data->>'title'),coalesce(data->>'year',''),coalesce(data->>'poster',''),coalesce(data->>'overview',''),coalesce(data->>'director',''),(data->>'tmdb_id')::bigint,(data->>'apple_id')::bigint,coalesce(data->>'store_url',''));
    end if;
  elsif action='/api/rating' then
-   if jsonb_typeof(data->'seen') is distinct from 'boolean' then raise exception 'Ã‰tat de visionnage invalide.'; end if;
+   if jsonb_typeof(data->'seen') is distinct from 'boolean' then raise exception 'État de visionnage invalide.'; end if;
    watched := (data->>'seen')::boolean;
    if data->>'score' is not null and (jsonb_typeof(data->'score')<>'number' or (data->>'score') !~ '^[0-9]+$') then raise exception 'Note invalide.'; end if;
    s := (data->>'score')::integer;
@@ -125,7 +125,7 @@ begin
  end if;
  return jsonb_build_object('ok',true);
 exception when unique_violation then
- raise exception 'Tu as dÃ©jÃ  proposÃ© un film pour cette session. Retire-le pour en choisir un autre.';
+ raise exception 'Tu as déjà proposé un film pour cette session. Retire-le pour en choisir un autre.';
 end;
 $$;
 revoke all on function public.cine_deadline(date),public.cine_week(),public.cine_draw_due(),public.cine_state(),public.cine_mutate(text,jsonb) from public,anon,authenticated;
