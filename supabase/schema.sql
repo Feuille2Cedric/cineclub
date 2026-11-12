@@ -99,7 +99,25 @@ begin
    end if;
    select proposal_id into chosen from public.cine_draws where week=w;
    if found then return jsonb_build_object('ok',true,'proposal_id',chosen,'already_drawn',true); end if;
-   select id into chosen from public.cine_proposals where week=w order by random() limit 1;
+   with past_draws as (
+     select p.member_id,row_number() over(order by d.week) as draw_number
+     from public.cine_draws d join public.cine_proposals p on p.id=d.proposal_id
+     where d.week<w
+   ), last_wins as (
+     select member_id,max(draw_number) as last_draw_number from past_draws group by member_id
+   ), rounds as (
+     select count(*)::bigint as total from past_draws
+   ), candidates as (
+     select p.id,greatest(1,r.total-coalesce(l.last_draw_number,0)+1)::bigint as tickets
+     from public.cine_proposals p cross join rounds r
+     left join last_wins l on l.member_id=p.member_id
+     where p.week=w
+   ), ranges as (
+     select id,sum(tickets) over(order by id) as upper_bound from candidates
+   ), target as (
+     select random()*(select coalesce(sum(tickets),0) from candidates) as value
+   )
+   select ranges.id into chosen from ranges,target where ranges.upper_bound>target.value order by ranges.upper_bound limit 1;
    if not found then raise exception 'Il faut au moins une proposition pour lancer le tirage.'; end if;
    insert into public.cine_draws(week,proposal_id,drawn_at) values(w,chosen,clock_timestamp());
    return jsonb_build_object('ok',true,'proposal_id',chosen,'already_drawn',false);

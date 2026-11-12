@@ -106,10 +106,16 @@ def mutate(path, data, moment=None):
             existing = db.execute('SELECT proposal_id FROM draws WHERE week=?', (week,)).fetchone()
             if existing:
                 return {'ok': True, 'proposal_id': existing['proposal_id'], 'already_drawn': True}
-            choices = db.execute('SELECT id FROM proposals WHERE week=? ORDER BY id', (week,)).fetchall()
+            choices = db.execute('SELECT id, member_id FROM proposals WHERE week=? ORDER BY id', (week,)).fetchall()
             if not choices:
                 raise ValueError('Il faut au moins une proposition pour lancer le tirage.')
-            chosen = secrets.choice(choices)['id']
+            past_draws = db.execute('SELECT p.member_id FROM draws d JOIN proposals p ON p.id=d.proposal_id WHERE d.week<? ORDER BY d.week', (week,)).fetchall()
+            last_win = {}
+            for draw_number, past in enumerate(past_draws, start=1):
+                last_win[past['member_id']] = draw_number
+            rounds = len(past_draws)
+            tickets = [choice for choice in choices for _ in range(rounds - last_win.get(choice['member_id'], 0) + 1)]
+            chosen = secrets.choice(tickets)['id']
             db.execute('INSERT INTO draws VALUES (?,?,?)', (week, chosen, moment.isoformat()))
             return {'ok': True, 'proposal_id': chosen, 'already_drawn': False}
         elif path in ('/api/proposal', '/api/remove'):

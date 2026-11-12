@@ -60,7 +60,14 @@ function render(){
   const waiting=state.members.filter(m=>!proposals.some(p=>p.member_id===m.id));
   $('#proposals').innerHTML=proposals.map(card).join('')+waiting.map(m=>`<article class="empty-card"><span class="waiting-avatar" style="background:${memberTint(m.id)}">${esc(m.name[0])}</span><h2>${esc(m.name)}</h2><p>${m.id===member?'À toi de proposer la prochaine découverte.':'Sa proposition arrive bientôt.'}</p></article>`).join('');
   fitProposalColumns();
-  $('#history').innerHTML=state.draws.length?state.draws.map(d=>`<section class="archive">${feature(d)}<details><summary>Les propositions du ${esc(pretty(d.week))}</summary><div class="grid">${state.proposals.filter(p=>p.week===d.week).map(card).join('')}</div></details></section>`).join(''):'<div class="empty">Les séances apparaîtront ici après le premier tirage.</div>';
+  const uniqueDraws=[],seenFilms=new Set();
+  for(const draw of [...state.draws].sort((a,b)=>b.week.localeCompare(a.week))){
+    const film=state.proposals.find(p=>p.id===draw.proposal_id);if(!film)continue;
+    const titleKey=film.title.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr').replace(/[^a-z0-9]+/g,' ').trim();
+    const key=film.tmdb_id?`tmdb:${film.tmdb_id}`:`title:${titleKey}:${film.year||''}`;
+    if(seenFilms.has(key))continue;seenFilms.add(key);uniqueDraws.push(draw);
+  }
+  $('#history').innerHTML=uniqueDraws.length?uniqueDraws.map(d=>`<section class="archive">${feature(d)}</section>`).join(''):'<div class="empty">Les séances apparaîtront ici après le premier tirage.</div>';
   renderWall();
 }
 function fitProposalColumns(){
@@ -114,7 +121,12 @@ function updateDraw(){
   const week=$('#draw-week').value;
   const count=state.proposals.filter(p=>p.week===week).length;
   $('#draw').disabled=!week||!count;
-  $('#draw-help').textContent=count?count+' proposition'+(count>1?'s':'')+' dans cette session. Le résultat sera définitif.':'Aucune session avec des propositions en attente de tirage.';
+  $('#draw-help').textContent=count?count+' proposition'+(count>1?'s':'')+' · chances augmentées avec le temps sans être tiré.':'Aucune session avec des propositions en attente de tirage.';
+  if(!week||!count){$('#draw-odds').innerHTML='';return;}
+  const previous=[...state.draws].filter(d=>d.week<week).sort((a,b)=>a.week.localeCompare(b.week));
+  const lastDraw=new Map();previous.forEach((d,i)=>{const winner=state.proposals.find(p=>p.id===d.proposal_id);if(winner)lastDraw.set(winner.member_id,i+1);});
+  const rounds=previous.length;
+  $('#draw-odds').innerHTML='<small>Billets du tirage</small>'+state.members.map(m=>`<span>${esc(m.name)} <b>${rounds-(lastDraw.get(m.id)||0)+1}</b></span>`).join('');
 }
 $('#draw-week').onchange=updateDraw;
 $('#draw').onclick=async()=>{
