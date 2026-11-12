@@ -25,9 +25,17 @@ function feature(draw){
 }
 function renderWall(){
   const filter=$('#filter').value, query=$('#wall-search').value.trim().toLocaleLowerCase('fr');
-  const films=state.proposals.filter(f=>{
+  const filtered=state.proposals.filter(f=>{
   const r=mine(f.id);return f.title.toLocaleLowerCase('fr').includes(query)&&(filter==='all'||filter==='unseen'&&!r?.seen||filter==='seen'&&r?.seen&&r.score==null||filter==='rated'&&r?.score!=null||filter==='selected'&&state.draws.some(d=>d.proposal_id===f.id));
   });
+  const unique=new Map();
+  for(const film of filtered){
+    const normalized=film.title.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr').replace(/[^a-z0-9]+/g,' ').trim();
+    const key=film.tmdb_id?`tmdb:${film.tmdb_id}`:`title:${normalized}:${film.year||''}`;
+    const current=unique.get(key);
+    if(!current||film.id>current.id)unique.set(key,film);
+  }
+  const films=[...unique.values()];
   $('#stats').textContent=films.length+' film'+(films.length>1?'s':'');
   $('#wall').innerHTML=films.length?films.map(f=>`<button class="tile ${mine(f.id)?.seen?'':'unseen'}" data-film="${f.id}"><div class="poster">${picture(f)}<span class="badge">${status(f.id)}</span></div><h3>${esc(f.title)}</h3><small>${esc(name(f.member_id))} · ${esc(f.year)}</small></button>`).join(''):'<p class="empty">Aucun film dans cette sélection.</p>';
 }
