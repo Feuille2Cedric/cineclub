@@ -31,7 +31,10 @@ function renderWall(){
   const unique=new Map();
   for(const film of filtered){
     const normalized=film.title.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr').replace(/[^a-z0-9]+/g,' ').trim();
-    const key=film.tmdb_id?`tmdb:${film.tmdb_id}`:`title:${normalized}:${film.year||''}`;
+    // Les anciennes propositions peuvent ne pas avoir de tmdb_id ou avoir une année différente.
+    // Dans Affiches, le titre normalisé suffit à regrouper le même film.
+    const posterKey=film.poster?film.poster.replace(/\?.*$/,'').toLocaleLowerCase('fr'):'';
+    const key=film.tmdb_id?`tmdb:${film.tmdb_id}`:`title:${normalized||posterKey}`;
     const current=unique.get(key);
     if(!current||film.id>current.id)unique.set(key,film);
   }
