@@ -32,3 +32,4 @@ header nav{display:flex;align-items:stretch;height:100%;gap:30px;margin-left:aut
 .profiles button .avatar{background-color:var(--member-color)!important}
 @media(max-width:760px){.albums{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.albums{grid-template-columns:1fr}}
+.help-button{display:grid;place-items:center;width:22px;height:22px;margin-left:5px;border:1px solid var(--line);border-radius:50%;background:var(--white);color:var(--muted);font-weight:700;cursor:pointer}.help-button:hover{color:var(--ink);border-color:var(--ink)}

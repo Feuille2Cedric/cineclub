@@ -149,6 +149,7 @@ function updateDraw(){
   $('#draw-odds').innerHTML='<small>Billets du tirage</small>'+state.members.map(m=>`<span>${esc(m.name)} <b>${rounds-(lastDraw.get(m.id)||0)+1}</b></span>`).join('');
 }
 $('#draw-week').onchange=updateDraw;
+$('#odds-help').onclick=()=>{const box=$('#draw-stats'),button=$('#odds-help'),open=box.hidden;box.hidden=!open;button.setAttribute('aria-expanded',String(open));};
 $('#draw').onclick=async()=>{
   const week=$('#draw-week').value;
   if(!week||!confirm('Lancer le tirage de la session du '+pretty(week)+' ? Les propositions seront closes et le résultat définitif.'))return;
