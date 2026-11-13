@@ -128,8 +128,16 @@ document.addEventListener('change',async event=>{
   try{await api('/api/rating',{member_id:member,proposal_id:filmId,seen:input.checked,score:input.checked?(current?.score??null):null,review:current?.review||''});await refresh();}
   catch(e){input.checked=!input.checked;toast(e.message);}
 });
+function renderDrawStats(week){
+  const box=$('#draw-stats'); if(!box)return;
+  const previous=[...state.draws].filter(d=>!week||d.week<week).sort((a,b)=>a.week.localeCompare(b.week));
+  const rounds=previous.length, lastDraw=new Map();
+  previous.forEach((d,i)=>{const film=state.proposals.find(p=>p.id===d.proposal_id);if(film)lastDraw.set(film.member_id,i+1);});
+  box.innerHTML='<div class="draw-stats-head"><span class="eyebrow"><i></i> ÉQUILIBRE DU TIRAGE</span><h2>Les chances de chacun</h2><p>Le poids augmente chaque semaine depuis la dernière sélection.</p></div><div class="draw-stats-grid">'+state.members.map(m=>{const wins=state.draws.filter(d=>{const f=state.proposals.find(p=>p.id===d.proposal_id);return f?.member_id===m.id;}).length;const weight=rounds-(lastDraw.get(m.id)||0)+1;return `<article class="draw-stat"><span class="avatar" style="background:${memberTint(m.id)}">${esc(m.name[0])}</span><div><strong>${esc(m.name)}</strong><small>${wins} sélection${wins===1?'':'s'} · ${weight} billet${weight===1?'':'s'}</small></div><b>${weight}</b></article>`}).join('')+'</div>';
+}
 function updateDraw(){
   const week=$('#draw-week').value;
+  renderDrawStats(week);
   const count=state.proposals.filter(p=>p.week===week).length;
   $('#draw').disabled=!week||!count;
   $('#draw-help').textContent=count?count+' proposition'+(count>1?'s':'')+' · chances augmentées avec le temps sans être tiré.':'Aucune session avec des propositions en attente de tirage.';
