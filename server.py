@@ -114,7 +114,7 @@ def mutate(path, data, moment=None):
             for draw_number, past in enumerate(past_draws, start=1):
                 last_win[past['member_id']] = draw_number
             rounds = len(past_draws)
-            tickets = [choice for choice in choices for _ in range(rounds - last_win.get(choice['member_id'], 0) + 1)]
+            tickets = [choice for choice in choices for _ in range(min(5, rounds - last_win.get(choice['member_id'], 0) + 1))]
             chosen = secrets.choice(tickets)['id']
             db.execute('INSERT INTO draws VALUES (?,?,?)', (week, chosen, moment.isoformat()))
             return {'ok': True, 'proposal_id': chosen, 'already_drawn': False}

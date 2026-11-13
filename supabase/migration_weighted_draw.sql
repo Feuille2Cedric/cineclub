@@ -25,7 +25,7 @@ begin
      select member_id,max(draw_number) as last_draw_number from past_draws group by member_id
    ), rounds as (select count(*)::bigint as total from past_draws),
    candidates as (
-     select p.id,greatest(1,r.total-coalesce(l.last_draw_number,0)+1)::bigint as tickets
+     select p.id,least(5,greatest(1,r.total-coalesce(l.last_draw_number,0)+1))::bigint as tickets
      from public.cine_proposals p cross join rounds r left join last_wins l on l.member_id=p.member_id where p.week=w
    ), ranges as (
      select id,sum(tickets) over(order by id) as upper_bound from candidates

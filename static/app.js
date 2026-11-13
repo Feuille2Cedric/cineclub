@@ -133,7 +133,7 @@ function renderDrawStats(week){
   const previous=[...state.draws].filter(d=>!week||d.week<week).sort((a,b)=>a.week.localeCompare(b.week));
   const rounds=previous.length, lastDraw=new Map();
   previous.forEach((d,i)=>{const film=state.proposals.find(p=>p.id===d.proposal_id);if(film)lastDraw.set(film.member_id,i+1);});
-  const weights=state.members.map(m=>rounds-(lastDraw.get(m.id)||0)+1), total=weights.reduce((a,b)=>a+b,0);
+  const weights=state.members.map(m=>Math.min(5,rounds-(lastDraw.get(m.id)||0)+1)), total=weights.reduce((a,b)=>a+b,0);
   box.innerHTML='<button type="button" class="close odds-close" aria-label="Fermer">×</button><div class="draw-stats-head"><span class="eyebrow"><i></i> ÉQUILIBRE DU TIRAGE</span><h2>Les chances de chacun</h2><p>Probabilité estimée sur 100 pour le prochain tirage.</p></div><div class="draw-stats-grid">'+state.members.map((m,index)=>{const wins=state.draws.filter(d=>{const f=state.proposals.find(p=>p.id===d.proposal_id);return f?.member_id===m.id;}).length;const weight=weights[index], percent=total?(weight/total*100).toLocaleString('fr-FR',{maximumFractionDigits:1}):'0';return `<article class="draw-stat"><span class="avatar" style="background:${memberTint(m.id)}">${esc(m.name[0])}</span><div><strong>${esc(m.name)}</strong><small>${wins} sélection${wins===1?'':'s'} · ${weight} billet${weight===1?'':'s'}</small></div><b>${percent} %</b></article>`}).join('')+'</div>';
 }
 function updateDraw(){
@@ -146,7 +146,7 @@ function updateDraw(){
   const previous=[...state.draws].filter(d=>d.week<week).sort((a,b)=>a.week.localeCompare(b.week));
   const lastDraw=new Map();previous.forEach((d,i)=>{const winner=state.proposals.find(p=>p.id===d.proposal_id);if(winner)lastDraw.set(winner.member_id,i+1);});
   const rounds=previous.length;
-  $('#draw-odds').innerHTML='<small>Billets du tirage</small>'+state.members.map(m=>`<span>${esc(m.name)} <b>${rounds-(lastDraw.get(m.id)||0)+1}</b></span>`).join('');
+  $('#draw-odds').innerHTML='<small>Billets du tirage (maximum 5)</small>'+state.members.map(m=>`<span>${esc(m.name)} <b>${Math.min(5,rounds-(lastDraw.get(m.id)||0)+1)}</b></span>`).join('');
 }
 $('#draw-week').onchange=updateDraw;
 $('#odds-help').onclick=()=>{const box=$('#draw-stats'),button=$('#odds-help');if(typeof box.showModal==='function')box.showModal();else box.setAttribute('open','');button.setAttribute('aria-expanded','true');};
