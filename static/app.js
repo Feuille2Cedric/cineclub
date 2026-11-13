@@ -134,7 +134,7 @@ function renderDrawStats(week){
   const rounds=previous.length, lastDraw=new Map();
   previous.forEach((d,i)=>{const film=state.proposals.find(p=>p.id===d.proposal_id);if(film)lastDraw.set(film.member_id,i+1);});
   const weights=state.members.map(m=>rounds-(lastDraw.get(m.id)||0)+1), total=weights.reduce((a,b)=>a+b,0);
-  box.innerHTML='<div class="draw-stats-head"><span class="eyebrow"><i></i> ÉQUILIBRE DU TIRAGE</span><h2>Les chances de chacun</h2><p>Probabilité estimée sur 100 pour le prochain tirage.</p></div><div class="draw-stats-grid">'+state.members.map((m,index)=>{const wins=state.draws.filter(d=>{const f=state.proposals.find(p=>p.id===d.proposal_id);return f?.member_id===m.id;}).length;const weight=weights[index], percent=total?(weight/total*100).toLocaleString('fr-FR',{maximumFractionDigits:1}):'0';return `<article class="draw-stat"><span class="avatar" style="background:${memberTint(m.id)}">${esc(m.name[0])}</span><div><strong>${esc(m.name)}</strong><small>${wins} sélection${wins===1?'':'s'} · ${weight} billet${weight===1?'':'s'}</small></div><b>${percent} %</b></article>`}).join('')+'</div>';
+  box.innerHTML='<button type="button" class="close odds-close" aria-label="Fermer">×</button><div class="draw-stats-head"><span class="eyebrow"><i></i> ÉQUILIBRE DU TIRAGE</span><h2>Les chances de chacun</h2><p>Probabilité estimée sur 100 pour le prochain tirage.</p></div><div class="draw-stats-grid">'+state.members.map((m,index)=>{const wins=state.draws.filter(d=>{const f=state.proposals.find(p=>p.id===d.proposal_id);return f?.member_id===m.id;}).length;const weight=weights[index], percent=total?(weight/total*100).toLocaleString('fr-FR',{maximumFractionDigits:1}):'0';return `<article class="draw-stat"><span class="avatar" style="background:${memberTint(m.id)}">${esc(m.name[0])}</span><div><strong>${esc(m.name)}</strong><small>${wins} sélection${wins===1?'':'s'} · ${weight} billet${weight===1?'':'s'}</small></div><b>${percent} %</b></article>`}).join('')+'</div>';
 }
 function updateDraw(){
   const week=$('#draw-week').value;
@@ -149,7 +149,8 @@ function updateDraw(){
   $('#draw-odds').innerHTML='<small>Billets du tirage</small>'+state.members.map(m=>`<span>${esc(m.name)} <b>${rounds-(lastDraw.get(m.id)||0)+1}</b></span>`).join('');
 }
 $('#draw-week').onchange=updateDraw;
-$('#odds-help').onclick=()=>{const box=$('#draw-stats'),button=$('#odds-help'),open=box.hidden;box.hidden=!open;button.setAttribute('aria-expanded',String(open));};
+$('#odds-help').onclick=()=>{const box=$('#draw-stats'),button=$('#odds-help');box.showModal();button.setAttribute('aria-expanded','true');};
+document.addEventListener('click',e=>{if(e.target.matches('.odds-close')){$('#draw-stats').close();$('#odds-help').setAttribute('aria-expanded','false');}});
 $('#draw').onclick=async()=>{
   const week=$('#draw-week').value;
   if(!week||!confirm('Lancer le tirage de la session du '+pretty(week)+' ? Les propositions seront closes et le résultat définitif.'))return;
